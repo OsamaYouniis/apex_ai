@@ -42,9 +42,40 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
+Windows alternative:
+
+```powershell
+Copy-Item .env.example .env
+```
+
 Edit `.env` and set:
 - `ANTHROPIC_API_KEY` — your key from https://console.anthropic.com
 - `JWT_SECRET` — a long random string (run: `python -c "import secrets; print(secrets.token_hex(32))"`)
+- `RAG_LLM_PROVIDER` — `groq` or `gemini`
+- `GROQ_API_KEY` or `GOOGLE_API_KEY`
+- `RAG_ADMIN_KEY` — required for protected reindex endpoint
+
+---
+
+## Step 4.5 — Add RAG Source Documents (System Docs Only)
+
+Put all trusted knowledge documents in:
+
+```text
+knowledge_base/raw/
+```
+
+Examples:
+- `nutrition_basics.txt`
+- `meal_planning.txt`
+- `fat_loss.txt`
+- `muscle_gain.txt`
+- `hydration.txt`
+- ACSM / ISSN / NSCA guideline PDFs
+
+Important:
+- This project is configured for **system-managed docs only** (not user uploads).
+- After adding or changing documents, rebuild the FAISS index.
 
 ---
 
@@ -74,6 +105,18 @@ jupyter notebook notebooks/
 
 ```bash
 uvicorn backend.main:app --reload --port 8000
+```
+
+Then build/rebuild the RAG index:
+
+```bash
+curl -X POST "http://localhost:8000/rag/reindex?admin_key=YOUR_RAG_ADMIN_KEY"
+```
+
+PowerShell alternative:
+
+```powershell
+Invoke-RestMethod -Method Post -Uri "http://localhost:8000/rag/reindex?admin_key=YOUR_RAG_ADMIN_KEY"
 ```
 
 Expected startup output:
@@ -110,6 +153,9 @@ Or open `frontend/index.html` directly in a browser (API calls go to `http://loc
 | GET  | `/auth/me` | Validate token |
 | POST | `/predict` | Calorie + weight + fitness prediction |
 | POST | `/chat` | AI chatbot (hybrid engine) |
+| POST | `/rag/chat` | LangGraph + RAG fitness coach chatbot |
+| GET  | `/rag/sources` | List system docs loaded from `knowledge_base/raw` |
+| POST | `/rag/reindex` | Rebuild FAISS index (admin key required) |
 | POST | `/vision/pose` | MoveNet pose detection + rep counting |
 | POST | `/vision/predict` | PyTorch exercise classification (NEW) |
 | POST | `/recommend` | Workout recommendations |

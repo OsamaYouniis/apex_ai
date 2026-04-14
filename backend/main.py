@@ -30,6 +30,11 @@ from backend.database.db import init_db
 from backend.routes import chat, predict, vision, recommend, user_data, auth
 from dotenv import load_dotenv
 
+try:
+    from backend.rag_coach.routes import router as rag_router
+except Exception as _rag_import_error:
+    rag_router = None
+
 load_dotenv()
 
 ROOT = Path(__file__).parent.parent
@@ -112,6 +117,10 @@ app.include_router(predict.router)
 app.include_router(vision.router)
 app.include_router(recommend.router)
 app.include_router(user_data.router)
+if rag_router is not None:
+    app.include_router(rag_router)
+else:
+    print(f"  ⚠️  RAG router disabled: {_rag_import_error}")
 
 # ── SERVE FRONTEND ─────────────────────────────────────────────────────────────
 frontend_dir = ROOT / "frontend"
@@ -139,6 +148,11 @@ async def health():
         intent_ok = IntentClassifier().is_trained()
     except Exception:
         intent_ok = False
+    try:
+        from backend.rag_coach.routes import _rag
+        rag_ok = _rag.vstore is not None
+    except Exception:
+        rag_ok = False
 
     return {
         "status": "ok",
@@ -149,9 +163,12 @@ async def health():
             "recommender":           recommender is not None,
             "pytorch_cv":            cv_ok,
             "nlp_intent_classifier": intent_ok,
+            "rag_faiss":             rag_ok,
         },
         "integrations": {
             "anthropic_api_key": bool(os.environ.get("ANTHROPIC_API_KEY")),
+            "groq_api_key": bool(os.environ.get("GROQ_API_KEY")),
+            "google_api_key": bool(os.environ.get("GOOGLE_API_KEY")),
             "jwt_secret_set":    bool(os.environ.get("JWT_SECRET")),
         },
     }

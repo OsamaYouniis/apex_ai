@@ -3145,23 +3145,26 @@ async function sendMsg() {
   if (chatHistory.length > 20) chatHistory.shift();
 
   try {
-    // ── Route through local FastAPI backend (POST /chat) ────────────────────
-    const response = await fetch(`${APEX_API}/chat`, {
+    // ── Route through local FastAPI backend (POST /rag/chat) ────────────────
+    const levelMap = {
+      1: 'sedentary',
+      2: 'light',
+      3: 'moderate',
+      4: 'active',
+      5: 'very_active',
+    };
+    const response = await fetch(`${APEX_API}/rag/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        message:   text,
-        history:   chatHistory.slice(0, -1),   // exclude the message just pushed
-        user_data: {
-          name:           userProfile.name,
-          age:            userProfile.age,
-          weight_kg:      userProfile.weight,
-          height_cm:      userProfile.height,
-          goal:           userProfile.goal,
-          activity_level: userProfile.activity,
-          gender:         userProfile.gender === 'f' ? 0 : 1,
-        },
-        user_id: 1,
+        message: text,
+        user_id: '1',
+        age: userProfile.age,
+        weight: userProfile.weight,
+        height: userProfile.height,
+        goal: userProfile.goal || 'cut',
+        activity_level: levelMap[Number(userProfile.activity)] || 'moderate',
+        gender: userProfile.gender === 'f' ? 'female' : 'male',
       })
     });
 
@@ -3170,7 +3173,7 @@ async function sendMsg() {
     let aiText = '';
     if (response.ok) {
       const data = await response.json();
-      aiText = data.reply || 'Great question! Let me help you with that. 💪';
+      aiText = data.response || data.reply || 'Great question! Let me help you with that. 💪';
     } else {
       // Fallback smart responses based on context
       aiText = getFallbackResponse(text);

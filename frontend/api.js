@@ -262,29 +262,37 @@ window.sendMsg = async function() {
   if (hist.length > 20) hist.shift();
 
   const ud = userProfile || {};
+  const levelMap = {
+    1: 'sedentary',
+    2: 'light',
+    3: 'moderate',
+    4: 'active',
+    5: 'very_active',
+  };
+  const normalizedActivity = levelMap[Number(ud.activity)] || 'moderate';
+  const normalizedGender = ud.gender === 'f' ? 'female' : 'male';
   let aiText = '';
   try {
     const h = { 'Content-Type': 'application/json' };
     if (Auth.token()) h['Authorization'] = 'Bearer ' + Auth.token();
-    const response = await fetch(APEX_API + '/chat', {
+    const response = await fetch(APEX_API + '/rag/chat', {
       method: 'POST', headers: h,
       body: JSON.stringify({
         message: text,
-        history: hist.slice(0, -1),
-        user_data: {
-          name: ud.name||'User', age: ud.age||25, weight_kg: ud.weight||70,
-          height_cm: ud.height||175, goal: ud.goal||'lose',
-          activity_level: ud.activity||2, gender: ud.gender==='f'?0:1,
-          target_weight: ud.targetWeight||65,
-        },
-        user_id: Auth.userId(),
+        user_id: String(Auth.userId()),
+        age: ud.age || 25,
+        weight: ud.weight || 70,
+        height: ud.height || 175,
+        gender: normalizedGender,
+        goal: ud.goal || 'cut',
+        activity_level: normalizedActivity,
       }),
     });
     document.getElementById('typing-indicator')?.remove();
     if (response.ok) {
       const data = await response.json();
-      aiText = data.reply || 'Let me help! 💪';
-      console.log('Chat source:', data.source, '| conf:', data.confidence?.toFixed(2));
+      aiText = data.response || data.reply || 'Let me help! 💪';
+      console.log('RAG chat calories:', data.calories, '| macros:', data.macros);
     } else {
       aiText = typeof getFallbackResponse === 'function' ? getFallbackResponse(text) : 'How can I help with your fitness today? 💪';
     }

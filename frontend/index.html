@@ -1,0 +1,3304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>APEX AI — Personal Trainer & Nutrition System</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;500;600;700&family=Exo+2:ital,wght@0,100;0,300;0,400;0,600;0,800;1,300&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+/* ─── GENDER THEMES ─────────────────────────── */
+:root {
+  /* Male (Navy Blue) — default */
+  --neon: #00ff88;
+  --neon2: #00d4ff;
+  --neon3: #7b5cff;
+  --dark: #030810;
+  --dark2: #070f1a;
+  --dark3: #0d1829;
+  --dark4: #111f33;
+  --glass: rgba(0,212,255,0.05);
+  --glass2: rgba(0,255,136,0.05);
+  --border: rgba(0,212,255,0.15);
+  --border2: rgba(0,255,136,0.2);
+  --text: #e0eeff;
+  --text2: #7a9cbf;
+  --text3: #4a6a8a;
+  --warn: #ff6b35;
+  --gold: #ffd93d;
+  --font-display: 'Rajdhani', sans-serif;
+  --font-body: 'Exo 2', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+/* Female Pink Theme */
+:root[data-theme="female"] {
+  --neon: #ff6eb4;
+  --neon2: #ff9de2;
+  --neon3: #c06cdd;
+  --dark: #0e0510;
+  --dark2: #170a1a;
+  --dark3: #1e0f24;
+  --dark4: #271530;
+  --glass: rgba(255,110,180,0.05);
+  --glass2: rgba(255,157,226,0.05);
+  --border: rgba(255,110,180,0.18);
+  --border2: rgba(255,157,226,0.22);
+  --text: #ffe0f5;
+  --text2: #bf7a9c;
+  --text3: #8a4a6a;
+  --warn: #ff6b35;
+  --gold: #ffd93d;
+}
+
+/* ─── THEME TOGGLE BUTTON ─────────────────── */
+#theme-toggle-btn {
+  position:fixed;bottom:24px;right:24px;z-index:9999;
+  width:52px;height:52px;border-radius:50%;border:none;cursor:pointer;
+  background:linear-gradient(135deg,var(--neon),var(--neon2));
+  font-size:1.3rem;box-shadow:0 4px 20px rgba(0,0,0,.4);
+  transition:transform .2s,box-shadow .3s;display:flex;align-items:center;justify-content:center;
+}
+#theme-toggle-btn:hover{transform:scale(1.1) rotate(15deg);}
+
+/* ─── CHART CONTAINERS ────────────────────── */
+.chart-wrapper {
+  position:relative;width:100%;
+}
+.chart-wrapper canvas {
+  max-height:220px;
+}
+
+/* ─── USER PROFILE MODAL ──────────────────── */
+#profile-modal {
+  display:none;position:fixed;inset:0;z-index:5000;
+  background:rgba(0,0,0,.75);backdrop-filter:blur(8px);
+  align-items:center;justify-content:center;
+}
+#profile-modal.open{display:flex;}
+.modal-box {
+  background:var(--dark2);border:1px solid var(--border);
+  border-radius:20px;padding:2.5rem;width:100%;max-width:520px;
+  position:relative;max-height:90vh;overflow-y:auto;
+}
+.modal-close {
+  position:absolute;top:1rem;right:1.25rem;background:none;border:none;
+  color:var(--text2);font-size:1.4rem;cursor:pointer;
+}
+.modal-close:hover{color:var(--text);}
+
+/* ─── PROGRESS LOG ────────────────────────── */
+#progress-log-modal {
+  display:none;position:fixed;inset:0;z-index:5000;
+  background:rgba(0,0,0,.75);backdrop-filter:blur(8px);
+  align-items:center;justify-content:center;
+}
+#progress-log-modal.open{display:flex;}
+
+/* ─── TOAST NOTIFICATION ──────────────────── */
+#toast {
+  position:fixed;bottom:90px;right:24px;z-index:9998;
+  background:var(--dark3);border:1px solid var(--border);
+  border-radius:12px;padding:.85rem 1.25rem;font-size:.85rem;
+  color:var(--text);box-shadow:0 8px 30px rgba(0,0,0,.5);
+  transform:translateY(20px);opacity:0;transition:all .3s;pointer-events:none;
+  max-width:280px;
+}
+#toast.show{transform:translateY(0);opacity:1;}
+
+/* ─── BMI GAUGE ───────────────────────────── */
+.bmi-gauge-wrap{position:relative;width:140px;height:70px;overflow:hidden;margin:0 auto;}
+.bmi-needle{
+  position:absolute;bottom:0;left:50%;width:3px;height:60px;
+  background:var(--warn);transform-origin:bottom center;
+  transform:translateX(-50%) rotate(-80deg);
+  transition:transform 1s cubic-bezier(.4,0,.2,1);
+  border-radius:3px 3px 0 0;
+}
+
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--dark);
+  color: var(--text);
+  font-family: var(--font-body);
+  overflow-x: hidden;
+  cursor: default;
+}
+
+/* ─── SCROLLBAR ─────────────────────────────── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--dark2); }
+::-webkit-scrollbar-thumb { background: var(--neon2); border-radius: 3px; }
+
+/* ─── PAGES ──────────────────────────────────── */
+.page { display: none; min-height: 100vh; animation: fadeIn .4s ease; }
+.page.active { display: block; }
+@keyframes fadeIn { from { opacity:0; transform: translateY(8px); } to { opacity:1; transform: translateY(0); } }
+
+/* ─── NAV ─────────────────────────────────────── */
+nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 2.5rem; height: 64px;
+  background: rgba(3,8,16,0.85);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+}
+.nav-logo {
+  font-family: var(--font-display); font-size: 1.5rem; font-weight: 700;
+  color: var(--neon); letter-spacing: 4px; text-transform: uppercase;
+  cursor: pointer;
+}
+.nav-logo span { color: var(--neon2); }
+.nav-links { display: flex; gap: 1.5rem; align-items: center; }
+.nav-link {
+  font-family: var(--font-display); font-size: .85rem; font-weight: 500;
+  letter-spacing: 2px; text-transform: uppercase; color: var(--text2);
+  cursor: pointer; padding: .3rem .6rem; border-radius: 4px;
+  transition: color .2s, background .2s;
+  position: relative;
+}
+.nav-link::after {
+  content: ''; position: absolute; bottom: -2px; left: 0; right: 0; height: 1px;
+  background: var(--neon); transform: scaleX(0); transition: transform .2s;
+}
+.nav-link:hover { color: var(--neon); }
+.nav-link:hover::after { transform: scaleX(1); }
+.nav-link.active { color: var(--neon); }
+.nav-btn {
+  background: linear-gradient(135deg, var(--neon), var(--neon2));
+  color: var(--dark); font-family: var(--font-display); font-weight: 700;
+  letter-spacing: 2px; font-size: .8rem; text-transform: uppercase;
+  border: none; padding: .5rem 1.4rem; border-radius: 6px;
+  cursor: pointer; transition: opacity .2s, transform .2s;
+}
+.nav-btn:hover { opacity: .85; transform: translateY(-1px); }
+
+/* ─── BUTTONS ─────────────────────────────────── */
+.btn {
+  display: inline-flex; align-items: center; gap: .5rem;
+  font-family: var(--font-display); font-weight: 600; letter-spacing: 2px;
+  font-size: .9rem; text-transform: uppercase; cursor: pointer;
+  border: none; border-radius: 8px; padding: .85rem 2rem;
+  transition: all .25s; text-decoration: none;
+}
+.btn-primary {
+  background: linear-gradient(135deg, var(--neon) 0%, var(--neon2) 100%);
+  color: var(--dark); box-shadow: 0 0 30px rgba(0,255,136,.3);
+}
+.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 0 45px rgba(0,255,136,.5); }
+.btn-ghost {
+  background: transparent; color: var(--neon2);
+  border: 1px solid var(--neon2); box-shadow: 0 0 15px rgba(0,212,255,.1);
+}
+.btn-ghost:hover { background: rgba(0,212,255,.08); box-shadow: 0 0 25px rgba(0,212,255,.25); transform: translateY(-2px); }
+.btn-warn {
+  background: linear-gradient(135deg, var(--warn), #ff4757);
+  color: #fff; box-shadow: 0 0 20px rgba(255,107,53,.3);
+}
+.btn-sm { padding: .5rem 1.2rem; font-size: .78rem; }
+
+/* ─── GLASS CARD ──────────────────────────────── */
+.card {
+  background: var(--glass); border: 1px solid var(--border);
+  border-radius: 16px; padding: 1.5rem;
+  backdrop-filter: blur(10px);
+  transition: border-color .3s, box-shadow .3s, transform .3s;
+}
+.card:hover {
+  border-color: rgba(0,212,255,.35);
+  box-shadow: 0 8px 40px rgba(0,212,255,.1);
+  transform: translateY(-3px);
+}
+.card-neon {
+  background: var(--glass2); border-color: var(--border2);
+}
+.card-neon:hover {
+  border-color: rgba(0,255,136,.45);
+  box-shadow: 0 8px 40px rgba(0,255,136,.12);
+}
+
+/* ─── SECTION HEADINGS ───────────────────────── */
+.section-tag {
+  font-family: var(--font-mono); font-size: .72rem; letter-spacing: 4px;
+  text-transform: uppercase; color: var(--neon); margin-bottom: .75rem;
+  display: flex; align-items: center; gap: .5rem;
+}
+.section-tag::before { content: '//'; opacity: .5; }
+.section-title {
+  font-family: var(--font-display); font-size: clamp(2rem, 4vw, 3.2rem);
+  font-weight: 700; line-height: 1.1; letter-spacing: 1px;
+}
+.section-title em { font-style: normal; color: var(--neon2); }
+.section-sub { color: var(--text2); font-size: 1.05rem; line-height: 1.7; margin-top: .75rem; }
+
+/* ─── GRID UTILITIES ──────────────────────────── */
+.grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
+.grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem; }
+
+/* ─── PROGRESS BAR ───────────────────────────── */
+.progress-bar { height: 8px; background: rgba(255,255,255,.06); border-radius: 99px; overflow: hidden; }
+.progress-fill {
+  height: 100%; border-radius: 99px;
+  background: linear-gradient(90deg, var(--neon), var(--neon2));
+  box-shadow: 0 0 10px rgba(0,255,136,.4);
+  transition: width 1s cubic-bezier(.4,0,.2,1);
+}
+.progress-fill.orange { background: linear-gradient(90deg, var(--warn), var(--gold)); box-shadow: 0 0 10px rgba(255,107,53,.4); }
+.progress-fill.purple { background: linear-gradient(90deg, var(--neon3), var(--neon2)); }
+
+/* ─── BADGE ───────────────────────────────────── */
+.badge {
+  display: inline-flex; align-items: center; gap: .3rem;
+  font-family: var(--font-mono); font-size: .65rem; letter-spacing: 2px;
+  text-transform: uppercase; padding: .25rem .65rem; border-radius: 99px;
+  border: 1px solid; font-weight: 500;
+}
+.badge-green { color: var(--neon); border-color: var(--neon); background: rgba(0,255,136,.06); }
+.badge-blue { color: var(--neon2); border-color: var(--neon2); background: rgba(0,212,255,.06); }
+.badge-gold { color: var(--gold); border-color: var(--gold); background: rgba(255,217,61,.06); }
+.badge-purple { color: var(--neon3); border-color: var(--neon3); background: rgba(123,92,255,.06); }
+
+/* ─── NEON TEXT ───────────────────────────────── */
+.neon-text { color: var(--neon); text-shadow: 0 0 20px rgba(0,255,136,.5); }
+.neon2-text { color: var(--neon2); text-shadow: 0 0 20px rgba(0,212,255,.5); }
+
+/* ─── BG GRID ─────────────────────────────────── */
+.bg-grid {
+  position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  background-image:
+    linear-gradient(rgba(0,212,255,.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,212,255,.04) 1px, transparent 1px);
+  background-size: 50px 50px;
+  mask-image: radial-gradient(ellipse 60% 80% at 50% 0%, black 30%, transparent 100%);
+}
+
+/* ─── ORBS ─────────────────────────────────────── */
+.orb {
+  position: absolute; border-radius: 50%; filter: blur(80px); pointer-events: none; z-index: 0;
+  animation: float 8s ease-in-out infinite;
+}
+@keyframes float {
+  0%,100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-20px) scale(1.04); }
+}
+.orb-green { background: radial-gradient(circle, rgba(0,255,136,.18) 0%, transparent 70%); }
+.orb-blue { background: radial-gradient(circle, rgba(0,212,255,.15) 0%, transparent 70%); animation-delay: -4s; }
+.orb-purple { background: radial-gradient(circle, rgba(123,92,255,.12) 0%, transparent 70%); animation-delay: -2s; }
+
+/* ─── STAT BOX ────────────────────────────────── */
+.stat-box { text-align: center; }
+.stat-num {
+  font-family: var(--font-display); font-size: 2.5rem; font-weight: 700;
+  background: linear-gradient(135deg, var(--neon), var(--neon2));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.stat-label { font-size: .8rem; color: var(--text3); letter-spacing: 2px; text-transform: uppercase; margin-top: .2rem; }
+
+/* ─── FORM ─────────────────────────────────────── */
+.form-group { display: flex; flex-direction: column; gap: .4rem; }
+.form-label {
+  font-family: var(--font-mono); font-size: .72rem; color: var(--neon2);
+  letter-spacing: 2px; text-transform: uppercase;
+}
+.form-input {
+  background: rgba(255,255,255,.04); border: 1px solid var(--border);
+  border-radius: 10px; padding: .85rem 1rem; color: var(--text);
+  font-family: var(--font-body); font-size: .95rem; outline: none;
+  transition: border-color .25s, box-shadow .25s;
+}
+.form-input:focus { border-color: var(--neon2); box-shadow: 0 0 15px rgba(0,212,255,.15); }
+.form-input::placeholder { color: var(--text3); }
+.form-select {
+  background: rgba(7,15,26,0.9); border: 1px solid var(--border);
+  border-radius: 10px; padding: .85rem 1rem; color: var(--text);
+  font-family: var(--font-body); font-size: .95rem; outline: none;
+  transition: border-color .25s; cursor: pointer;
+  -webkit-appearance: none;
+}
+.form-select:focus { border-color: var(--neon2); }
+.form-select option { background: var(--dark3); }
+.radio-group { display: flex; gap: 1rem; }
+.radio-btn {
+  flex: 1; padding: .85rem; background: rgba(255,255,255,.03);
+  border: 1px solid var(--border); border-radius: 10px;
+  display: flex; align-items: center; justify-content: center; gap: .5rem;
+  cursor: pointer; transition: all .2s; font-size: .9rem; color: var(--text2);
+}
+.radio-btn.selected { border-color: var(--neon2); background: rgba(0,212,255,.08); color: var(--neon2); }
+.radio-btn:hover { border-color: rgba(0,212,255,.4); }
+
+/* ─── NOTIFICATION DOT ────────────────────────── */
+.notif-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--warn); box-shadow: 0 0 8px var(--warn);
+  display: inline-block;
+}
+
+/* ─── SIDEBAR (DASHBOARD) ─────────────────────── */
+.dashboard-layout { display: flex; min-height: 100vh; padding-top: 64px; }
+.sidebar {
+  width: 240px; min-height: calc(100vh - 64px);
+  background: var(--dark2); border-right: 1px solid var(--border);
+  padding: 2rem 1rem; position: fixed; top: 64px; left: 0; bottom: 0;
+  z-index: 100; overflow-y: auto;
+}
+.sidebar-section { margin-bottom: 2rem; }
+.sidebar-title {
+  font-family: var(--font-mono); font-size: .65rem; letter-spacing: 3px;
+  color: var(--text3); text-transform: uppercase; padding: 0 .75rem;
+  margin-bottom: .75rem;
+}
+.sidebar-link {
+  display: flex; align-items: center; gap: .75rem;
+  padding: .7rem .75rem; border-radius: 10px; cursor: pointer;
+  color: var(--text2); font-size: .9rem; font-weight: 400;
+  transition: all .2s; margin-bottom: .25rem;
+}
+.sidebar-link:hover { background: var(--glass); color: var(--text); }
+.sidebar-link.active { background: var(--glass2); color: var(--neon); border: 1px solid rgba(0,255,136,.15); }
+.sidebar-link .icon { font-size: 1.1rem; width: 20px; text-align: center; }
+.sidebar-user {
+  display: flex; align-items: center; gap: .75rem;
+  padding: .75rem; border-radius: 12px;
+  background: var(--glass); border: 1px solid var(--border);
+  margin-bottom: 1.5rem;
+}
+.avatar {
+  width: 40px; height: 40px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--neon), var(--neon2));
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-display); font-weight: 700; color: var(--dark);
+  font-size: 1rem; flex-shrink: 0;
+}
+.avatar.lg { width: 56px; height: 56px; font-size: 1.3rem; }
+.avatar.xl { width: 80px; height: 80px; font-size: 1.8rem; }
+.sidebar-user-name { font-weight: 600; font-size: .9rem; }
+.sidebar-user-sub { font-size: .75rem; color: var(--text3); margin-top: .1rem; }
+
+.main-content { margin-left: 240px; flex: 1; padding: 2.5rem; }
+
+/* ─── CHART MINI ──────────────────────────────── */
+.mini-chart { display: flex; align-items: flex-end; gap: 4px; height: 60px; }
+.mini-bar {
+  flex: 1; border-radius: 4px 4px 0 0;
+  background: linear-gradient(180deg, var(--neon2), rgba(0,212,255,.2));
+  transition: height .5s ease;
+}
+.mini-bar:nth-child(odd) { background: linear-gradient(180deg, var(--neon), rgba(0,255,136,.2)); }
+
+/* ─── CHAT ──────────────────────────────────────── */
+.chat-container { display: flex; flex-direction: column; height: calc(100vh - 200px); }
+.chat-messages { flex: 1; overflow-y: auto; padding: 1.5rem; display: flex; flex-direction: column; gap: 1.2rem; }
+.chat-msg { display: flex; gap: .75rem; animation: msgIn .3s ease; }
+@keyframes msgIn { from { opacity:0; transform: translateY(6px); } to { opacity:1; transform: translateY(0); } }
+.chat-msg.user { flex-direction: row-reverse; }
+.chat-bubble {
+  max-width: 65%; padding: .85rem 1.1rem; border-radius: 16px;
+  font-size: .9rem; line-height: 1.6;
+}
+.chat-msg.ai .chat-bubble {
+  background: var(--glass); border: 1px solid var(--border); border-radius: 4px 16px 16px 16px;
+  color: var(--text);
+}
+.chat-msg.user .chat-bubble {
+  background: linear-gradient(135deg, rgba(0,255,136,.15), rgba(0,212,255,.1));
+  border: 1px solid var(--border2); border-radius: 16px 4px 16px 16px;
+  color: var(--text);
+}
+.chat-input-area {
+  padding: 1rem 1.5rem; border-top: 1px solid var(--border);
+  display: flex; gap: 1rem; align-items: center;
+}
+.chat-input {
+  flex: 1; background: rgba(255,255,255,.04); border: 1px solid var(--border);
+  border-radius: 12px; padding: .85rem 1.1rem; color: var(--text);
+  font-family: var(--font-body); font-size: .95rem; outline: none;
+  resize: none;
+  transition: border-color .25s;
+}
+.chat-input:focus { border-color: var(--neon2); }
+.typing-dots { display: flex; gap: 4px; padding: .5rem; }
+.typing-dots span {
+  width: 8px; height: 8px; border-radius: 50%; background: var(--neon2);
+  animation: typing .8s ease-in-out infinite;
+}
+.typing-dots span:nth-child(2) { animation-delay: .15s; }
+.typing-dots span:nth-child(3) { animation-delay: .3s; }
+@keyframes typing { 0%,60%,100% { transform: translateY(0); opacity:.4; } 30% { transform: translateY(-6px); opacity:1; } }
+
+/* ─── SVG CHARTS ──────────────────────────────── */
+.chart-svg-wrap { position: relative; }
+.chart-svg { width: 100%; overflow: visible; }
+
+/* ─── EXERCISE CARD ───────────────────────────── */
+.exercise-card { cursor: pointer; position: relative; overflow: hidden; }
+.exercise-card::before {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(135deg, transparent 60%, rgba(0,255,136,.06));
+  pointer-events: none;
+}
+.exercise-num {
+  font-family: var(--font-display); font-size: 3rem; font-weight: 700;
+  color: rgba(0,212,255,.08); position: absolute; right: 1rem; top: .5rem;
+  line-height: 1;
+}
+
+/* ─── ACHIEVEMENT ─────────────────────────────── */
+.achievement {
+  display: flex; align-items: center; gap: 1rem;
+  padding: 1.2rem; background: var(--glass); border: 1px solid var(--border);
+  border-radius: 14px; transition: all .3s;
+}
+.achievement:hover { border-color: var(--gold); box-shadow: 0 4px 30px rgba(255,217,61,.1); }
+.achievement-icon {
+  width: 48px; height: 48px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.5rem; flex-shrink: 0;
+}
+.achievement-icon.gold { background: rgba(255,217,61,.12); }
+.achievement-icon.blue { background: rgba(0,212,255,.1); }
+.achievement-icon.green { background: rgba(0,255,136,.1); }
+.achievement-icon.purple { background: rgba(123,92,255,.1); }
+.achievement-icon.gray { background: rgba(255,255,255,.05); }
+
+/* ─── MEAL CARD ───────────────────────────────── */
+.meal-card { position: relative; }
+.meal-emoji { font-size: 2.5rem; margin-bottom: .75rem; display: block; }
+
+/* ─── CAMERA SECTION ──────────────────────────── */
+.camera-box {
+  background: rgba(0,0,0,.4); border: 2px dashed rgba(0,255,136,.3);
+  border-radius: 16px; aspect-ratio: 16/9; display: flex;
+  align-items: center; justify-content: center; flex-direction: column;
+  gap: 1rem; cursor: pointer; transition: all .3s; position: relative;
+  overflow: hidden;
+}
+.camera-box:hover { border-color: var(--neon); box-shadow: 0 0 30px rgba(0,255,136,.15); }
+.camera-icon { font-size: 3rem; opacity: .6; }
+
+/* ─── STREAK ──────────────────────────────────── */
+.streak-fire { font-size: 2rem; animation: flicker 1.5s ease-in-out infinite; }
+@keyframes flicker { 0%,100% { transform: scale(1) rotate(-3deg); } 50% { transform: scale(1.1) rotate(3deg); } }
+
+/* ─── PULSE RING ──────────────────────────────── */
+.pulse-ring {
+  width: 12px; height: 12px; border-radius: 50%; background: var(--neon);
+  position: relative; display: inline-block;
+}
+.pulse-ring::after {
+  content: ''; position: absolute; inset: -4px; border-radius: 50%;
+  border: 2px solid var(--neon); animation: pulse-anim 2s infinite;
+}
+@keyframes pulse-anim { 0% { transform: scale(1); opacity:1; } 100% { transform: scale(2.5); opacity:0; } }
+
+/* ─── MACRO RING ──────────────────────────────── */
+.macro-ring { position: relative; width: 100px; height: 100px; margin: 0 auto; }
+.macro-ring svg { transform: rotate(-90deg); }
+.macro-ring-label {
+  position: absolute; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+}
+.macro-ring-num { font-family: var(--font-display); font-size: 1.3rem; font-weight: 700; }
+.macro-ring-sub { font-size: .65rem; color: var(--text3); }
+
+/* ─── HERO ANIMATIONS ─────────────────────────── */
+@keyframes scan {
+  0% { transform: translateY(-100%); opacity:.8; }
+  100% { transform: translateY(100%); opacity:0; }
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+@keyframes slideUp { from{opacity:0;transform:translateY(30px)} to{opacity:1;transform:translateY(0)} }
+
+.hero-headline { animation: slideUp .8s .1s ease both; }
+.hero-sub { animation: slideUp .8s .3s ease both; }
+.hero-btns { animation: slideUp .8s .5s ease both; }
+.hero-stats { animation: slideUp .8s .7s ease both; }
+
+/* ─── RESPONSIVE ──────────────────────────────── */
+@media (max-width: 1100px) {
+  .main-content { margin-left: 0; }
+  .sidebar { display: none; }
+  .grid-4 { grid-template-columns: repeat(2,1fr); }
+}
+@media (max-width: 768px) {
+  .grid-2,.grid-3 { grid-template-columns: 1fr; }
+  .nav-links { display: none; }
+  .section-title { font-size: 2rem; }
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════
+     NAV
+══════════════════════════════════════════════ -->
+<nav id="main-nav">
+  <div class="nav-logo" onclick="goTo('landing')">APEX<span>AI</span></div>
+  <div class="nav-links" id="nav-links">
+    <span class="nav-link" onclick="goTo('dashboard')">Dashboard</span>
+    <span class="nav-link" onclick="goTo('workout')">Workouts</span>
+    <span class="nav-link" onclick="goTo('nutrition')">Nutrition</span>
+    <span class="nav-link" onclick="goTo('chatbot')">AI Coach</span>
+    <span class="nav-link" onclick="goTo('progress')">Progress</span>
+    <span class="nav-link" onclick="goTo('gamification')">Rewards</span>
+  </div>
+  <button class="nav-btn" onclick="goTo('signin')">Get Started</button>
+</nav>
+
+<!-- ══════════════════════════════════════════════
+     PAGE: LANDING
+══════════════════════════════════════════════ -->
+<div class="page active" id="page-landing">
+
+  <!-- Hero -->
+  <section style="min-height:100vh;display:flex;align-items:center;position:relative;overflow:hidden;padding-top:64px;">
+    <div class="bg-grid"></div>
+    <div class="orb orb-green" style="width:600px;height:600px;top:-100px;right:-150px;"></div>
+    <div class="orb orb-blue" style="width:500px;height:500px;bottom:-100px;left:-100px;"></div>
+
+    <div style="max-width:1200px;margin:0 auto;padding:5rem 2.5rem;position:relative;z-index:1;width:100%;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4rem;align-items:center;">
+        <div>
+          <div class="section-tag" style="animation:slideUp .6s ease both;">AI FITNESS</div>
+          <h1 class="section-title hero-headline" style="font-size:clamp(2.4rem,5vw,4rem);line-height:1.05;margin-bottom:1.5rem;">
+            Your <em>AI</em><br>Personal Trainer
+          </h1>
+          <p class="hero-sub" style="color:var(--text2);font-size:1.1rem;line-height:1.8;margin-bottom:2.5rem;max-width:480px;">
+            Harness the power of artificial intelligence to transform your fitness journey. Custom workouts, precision nutrition, real-time pose analysis — all powered by APEX AI.
+          </p>
+          <div class="hero-btns" style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:3.5rem;">
+            <button class="btn btn-primary" onclick="goTo('signup')">🚀 Start Now — Free</button>
+            <button class="btn btn-ghost" onclick="goTo('dashboard')">▶ Try Demo</button>
+          </div>
+          <div class="hero-stats" style="display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;">
+            <div class="stat-box card" style="padding:1rem;">
+              <div class="stat-num">50K+</div>
+              <div class="stat-label">Active Users</div>
+            </div>
+            <div class="stat-box card" style="padding:1rem;">
+              <div class="stat-num">98%</div>
+              <div class="stat-label">Satisfaction</div>
+            </div>
+            <div class="stat-box card" style="padding:1rem;">
+              <div class="stat-num">AI</div>
+              <div class="stat-label">Powered</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Hero Visual -->
+        <div style="position:relative;display:flex;justify-content:center;">
+          <div style="width:340px;height:420px;position:relative;">
+            <!-- Phone mockup -->
+            <div style="width:260px;height:420px;background:var(--dark2);border:2px solid var(--border);border-radius:30px;padding:1rem;margin:0 auto;position:relative;overflow:hidden;box-shadow:0 0 80px rgba(0,212,255,.2);">
+              <div style="background:rgba(0,255,136,.05);border:1px solid rgba(0,255,136,.2);border-radius:20px;padding:1rem;margin-bottom:.75rem;">
+                <div style="font-size:.7rem;color:var(--text3);margin-bottom:.3rem;font-family:var(--font-mono);">TODAY'S WORKOUT</div>
+                <div style="font-weight:600;font-size:.9rem;color:var(--neon);margin-bottom:.5rem;">Chest + Triceps</div>
+                <div class="progress-bar"><div class="progress-fill" style="width:65%"></div></div>
+                <div style="display:flex;justify-content:space-between;font-size:.65rem;color:var(--text3);margin-top:.3rem;"><span>Progress</span><span>65%</span></div>
+              </div>
+              <div style="background:var(--glass);border:1px solid var(--border);border-radius:16px;padding:.85rem;margin-bottom:.75rem;">
+                <div style="font-size:.65rem;color:var(--text3);font-family:var(--font-mono);margin-bottom:.5rem;">AI COACH SAYS</div>
+                <div style="font-size:.78rem;color:var(--text2);line-height:1.5;">"Increase bench press by 5kg today — your recovery is excellent! 💪"</div>
+              </div>
+              <!-- Mini bars -->
+              <div style="background:var(--glass);border:1px solid var(--border);border-radius:16px;padding:.85rem;">
+                <div style="font-size:.65rem;color:var(--text3);font-family:var(--font-mono);margin-bottom:.75rem;">CALORIES — 1840/2200</div>
+                <div class="mini-chart" style="height:50px;">
+                  <div class="mini-bar" style="height:40%"></div>
+                  <div class="mini-bar" style="height:65%"></div>
+                  <div class="mini-bar" style="height:80%"></div>
+                  <div class="mini-bar" style="height:55%"></div>
+                  <div class="mini-bar" style="height:90%"></div>
+                  <div class="mini-bar" style="height:84%"></div>
+                  <div class="mini-bar" style="height:70%"></div>
+                </div>
+              </div>
+              <!-- Scan effect -->
+              <div style="position:absolute;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--neon2),transparent);animation:scan 3s linear infinite;top:0;"></div>
+            </div>
+            <!-- Floating badges -->
+            <div class="badge badge-green" style="position:absolute;top:30px;right:-10px;animation:float 6s ease-in-out infinite;">
+              🏆 Streak: 14 days
+            </div>
+            <div class="badge badge-blue" style="position:absolute;bottom:80px;left:-20px;animation:float 7s ease-in-out infinite;animation-delay:-3s;">
+              🧠 AI Active
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section style="padding:6rem 2.5rem;max-width:1200px;margin:0 auto;">
+    <div style="text-align:center;margin-bottom:4rem;">
+      <div class="section-tag" style="justify-content:center;">CORE FEATURES</div>
+      <h2 class="section-title">Everything You Need to <em>Dominate</em></h2>
+    </div>
+    <div class="grid-3" style="gap:2rem;">
+      <!-- Feature cards -->
+      <div class="card card-neon" onclick="goTo('workout')" style="cursor:pointer;">
+        <div style="font-size:2.5rem;margin-bottom:1rem;">⚡</div>
+        <h3 style="font-family:var(--font-display);font-size:1.25rem;font-weight:700;color:var(--neon);margin-bottom:.5rem;">AI Workout Generator</h3>
+        <p style="color:var(--text2);font-size:.9rem;line-height:1.6;">Dynamically generated training plans that adapt to your progress, recovery, and goals in real-time.</p>
+      </div>
+      <div class="card" onclick="goTo('nutrition')" style="cursor:pointer;">
+        <div style="font-size:2.5rem;margin-bottom:1rem;">🥗</div>
+        <h3 style="font-family:var(--font-display);font-size:1.25rem;font-weight:700;color:var(--neon2);margin-bottom:.5rem;">AI Nutrition Planner</h3>
+        <p style="color:var(--text2);font-size:.9rem;line-height:1.6;">Precision meal plans optimized for your macros, dietary preferences, and metabolic profile.</p>
+      </div>
+      <div class="card card-neon" onclick="goTo('workout')" style="cursor:pointer;">
+        <div style="font-size:2.5rem;margin-bottom:1rem;">📸</div>
+        <h3 style="font-family:var(--font-display);font-size:1.25rem;font-weight:700;color:var(--neon);margin-bottom:.5rem;">Computer Vision Trainer</h3>
+        <p style="color:var(--text2);font-size:.9rem;line-height:1.6;">Real-time posture detection and form correction using your camera. Prevent injuries, maximize gains.</p>
+      </div>
+      <div class="card" onclick="goTo('chatbot')" style="cursor:pointer;">
+        <div style="font-size:2.5rem;margin-bottom:1rem;">🤖</div>
+        <h3 style="font-family:var(--font-display);font-size:1.25rem;font-weight:700;color:var(--neon2);margin-bottom:.5rem;">Smart Chatbot Coach</h3>
+        <p style="color:var(--text2);font-size:.9rem;line-height:1.6;">24/7 AI fitness advisor with context-aware guidance. Ask anything, get expert-level answers instantly.</p>
+      </div>
+      <div class="card card-neon" onclick="goTo('progress')" style="cursor:pointer;">
+        <div style="font-size:2.5rem;margin-bottom:1rem;">📊</div>
+        <h3 style="font-family:var(--font-display);font-size:1.25rem;font-weight:700;color:var(--neon);margin-bottom:.5rem;">Progress Tracking</h3>
+        <p style="color:var(--text2);font-size:.9rem;line-height:1.6;">Advanced analytics with AI predictions. Visualize your transformation with beautiful, detailed charts.</p>
+      </div>
+      <div class="card" onclick="goTo('gamification')" style="cursor:pointer;">
+        <div style="font-size:2.5rem;margin-bottom:1rem;">🎮</div>
+        <h3 style="font-family:var(--font-display);font-size:1.25rem;font-weight:700;color:var(--neon2);margin-bottom:.5rem;">Gamification System</h3>
+        <p style="color:var(--text2);font-size:.9rem;line-height:1.6;">Badges, streaks, levels, and achievements that keep you motivated and make fitness addictively fun.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Testimonials -->
+  <section style="padding:5rem 2.5rem;background:var(--dark2);border-top:1px solid var(--border);border-bottom:1px solid var(--border);">
+    <div style="max-width:1200px;margin:0 auto;">
+      <div style="text-align:center;margin-bottom:3.5rem;">
+        <div class="section-tag" style="justify-content:center;">TESTIMONIALS</div>
+        <h2 class="section-title">What Our Users <em>Say</em></h2>
+      </div>
+      <div class="grid-3">
+        <div class="card">
+          <div style="color:var(--gold);font-size:1rem;margin-bottom:.75rem;">★★★★★</div>
+          <p style="color:var(--text2);font-size:.9rem;line-height:1.7;margin-bottom:1rem;">"APEX AI completely transformed my fitness routine. Lost 18kg in 6 months — the AI coach kept me on track every single day."</p>
+          <div style="display:flex;align-items:center;gap:.75rem;">
+            <div class="avatar" style="background:linear-gradient(135deg,#ff6b35,#ffd93d);">A</div>
+            <div><div style="font-weight:600;font-size:.9rem;">Ahmed Hassan</div><div style="font-size:.75rem;color:var(--text3);">Lost 18kg | Cairo</div></div>
+          </div>
+        </div>
+        <div class="card card-neon">
+          <div style="color:var(--gold);font-size:1rem;margin-bottom:.75rem;">★★★★★</div>
+          <p style="color:var(--text2);font-size:.9rem;line-height:1.7;margin-bottom:1rem;">"The computer vision posture correction is mind-blowing. No more guessing if my form is right — the AI gives instant feedback!"</p>
+          <div style="display:flex;align-items:center;gap:.75rem;">
+            <div class="avatar" style="background:linear-gradient(135deg,var(--neon3),var(--neon2));">S</div>
+            <div><div style="font-weight:600;font-size:.9rem;">Sara Mohamed</div><div style="font-size:.75rem;color:var(--text3);">Gained 8kg muscle | Alex</div></div>
+          </div>
+        </div>
+        <div class="card">
+          <div style="color:var(--gold);font-size:1rem;margin-bottom:.75rem;">★★★★★</div>
+          <p style="color:var(--text2);font-size:.9rem;line-height:1.7;margin-bottom:1rem;">"As a medical student with no time, APEX AI creates perfect 30-min workouts that fit my schedule. The nutrition planner is unreal."</p>
+          <div style="display:flex;align-items:center;gap:.75rem;">
+            <div class="avatar" style="background:linear-gradient(135deg,var(--neon2),#3a86ff);">K</div>
+            <div><div style="font-weight:600;font-size:.9rem;">Karim Nasser</div><div style="font-size:.75rem;color:var(--text3);">Lean physique | Giza</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer style="background:var(--dark);border-top:1px solid var(--border);padding:4rem 2.5rem 2rem;">
+    <div style="max-width:1200px;margin:0 auto;">
+      <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:3rem;margin-bottom:3rem;">
+        <div>
+          <div class="nav-logo" style="font-size:1.8rem;margin-bottom:1rem;">APEX<span>AI</span></div>
+          <p style="color:var(--text3);font-size:.85rem;line-height:1.7;max-width:280px;">The most advanced AI fitness platform. Transform your body with the power of artificial intelligence.</p>
+          <div style="display:flex;gap:.75rem;margin-top:1.25rem;">
+            <div style="width:36px;height:36px;border-radius:8px;background:var(--glass);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:.9rem;">𝕏</div>
+            <div style="width:36px;height:36px;border-radius:8px;background:var(--glass);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:.9rem;">in</div>
+            <div style="width:36px;height:36px;border-radius:8px;background:var(--glass);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:.85rem;">▶️</div>
+          </div>
+        </div>
+        <div>
+          <div style="font-family:var(--font-display);font-weight:600;font-size:.9rem;letter-spacing:2px;text-transform:uppercase;color:var(--neon2);margin-bottom:1rem;">Features</div>
+          <div style="display:flex;flex-direction:column;gap:.6rem;">
+            <span style="color:var(--text3);font-size:.85rem;cursor:pointer;" onclick="goTo('workout')">AI Workouts</span>
+            <span style="color:var(--text3);font-size:.85rem;cursor:pointer;" onclick="goTo('nutrition')">Nutrition</span>
+            <span style="color:var(--text3);font-size:.85rem;cursor:pointer;" onclick="goTo('chatbot')">AI Coach</span>
+            <span style="color:var(--text3);font-size:.85rem;cursor:pointer;" onclick="goTo('progress')">Analytics</span>
+          </div>
+        </div>
+        <div>
+          <div style="font-family:var(--font-display);font-weight:600;font-size:.9rem;letter-spacing:2px;text-transform:uppercase;color:var(--neon2);margin-bottom:1rem;">Company</div>
+          <div style="display:flex;flex-direction:column;gap:.6rem;">
+            <span style="color:var(--text3);font-size:.85rem;cursor:pointer;">About</span>
+            <span style="color:var(--text3);font-size:.85rem;cursor:pointer;">Research</span>
+            <span style="color:var(--text3);font-size:.85rem;cursor:pointer;">Blog</span>
+            <span style="color:var(--text3);font-size:.85rem;cursor:pointer;">Careers</span>
+          </div>
+        </div>
+        <div>
+          <div style="font-family:var(--font-display);font-weight:600;font-size:.9rem;letter-spacing:2px;text-transform:uppercase;color:var(--neon2);margin-bottom:1rem;">Contact</div>
+          <div style="display:flex;flex-direction:column;gap:.6rem;">
+            <span style="color:var(--text3);font-size:.85rem;"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="96fef3fafaf9d6f7e6f3eef7ffb8f0ffe2">[email&#160;protected]</a></span>
+            <span style="color:var(--text3);font-size:.85rem;">Cairo, Egypt</span>
+            <span style="color:var(--text3);font-size:.85rem;cursor:pointer;">Support Center</span>
+          </div>
+        </div>
+      </div>
+      <div style="border-top:1px solid var(--border);padding-top:2rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;">
+        <span style="color:var(--text3);font-size:.8rem;">© 2025 APEX AI — Graduation Project</span>
+        <span style="color:var(--text3);font-size:.8rem;">Built with <span style="color:var(--neon);">♥</span> & Artificial Intelligence</span>
+      </div>
+    </div>
+  </footer>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     PAGE: SIGN IN
+══════════════════════════════════════════════ -->
+<div class="page" id="page-signin">
+  <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:80px 2rem 2rem;position:relative;overflow:hidden;">
+    <div class="orb orb-blue" style="width:500px;height:500px;top:-100px;right:-100px;"></div>
+    <div class="orb orb-green" style="width:400px;height:400px;bottom:-100px;left:-50px;"></div>
+
+    <div style="width:100%;max-width:420px;position:relative;z-index:1;">
+      <div style="text-align:center;margin-bottom:2.5rem;">
+        <div class="nav-logo" style="font-size:2rem;display:block;margin-bottom:.75rem;" onclick="goTo('landing')">APEX<span>AI</span></div>
+        <h2 style="font-family:var(--font-display);font-size:1.8rem;font-weight:700;">Welcome Back</h2>
+        <p style="color:var(--text2);margin-top:.4rem;">Sign in to continue your fitness journey</p>
+      </div>
+
+      <div class="card" style="padding:2.5rem;">
+        <div style="display:flex;flex-direction:column;gap:1.25rem;">
+          <div class="form-group">
+            <label class="form-label">Email Address</label>
+            <input class="form-input" id="signin-email" type="email" placeholder="you@example.com">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Password</label>
+            <input class="form-input" id="signin-password" type="password" placeholder="••••••••">
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;font-size:.83rem;">
+            <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer;color:var(--text2);">
+              <input type="checkbox" style="accent-color:var(--neon);"> Remember me
+            </label>
+            <span style="color:var(--neon2);cursor:pointer;">Forgot password?</span>
+          </div>
+          <button class="btn btn-primary" onclick="handleSignIn()" style="width:100%;justify-content:center;">Sign In →</button>
+          <div style="text-align:center;color:var(--text3);font-size:.85rem;">
+            Don't have an account? <span style="color:var(--neon2);cursor:pointer;" onclick="goTo('signup')">Sign Up</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     PAGE: SIGN UP
+══════════════════════════════════════════════ -->
+<div class="page" id="page-signup">
+  <div style="min-height:100vh;padding:80px 2rem 4rem;position:relative;overflow:hidden;">
+    <div class="orb orb-green" style="width:500px;height:500px;top:-100px;left:50%;transform:translateX(-50%);"></div>
+
+    <div style="max-width:700px;margin:0 auto;position:relative;z-index:1;">
+      <div style="text-align:center;margin-bottom:2.5rem;">
+        <div class="nav-logo" style="font-size:1.8rem;display:block;margin-bottom:.75rem;" onclick="goTo('landing')">APEX<span>AI</span></div>
+        <h2 style="font-family:var(--font-display);font-size:2rem;font-weight:700;">Create Your Profile</h2>
+        <p style="color:var(--text2);margin-top:.4rem;">Tell us about yourself so the AI can personalize your experience</p>
+      </div>
+
+      <!-- Step indicator -->
+      <div style="display:flex;gap:0;margin-bottom:2.5rem;background:var(--dark3);border-radius:12px;padding:.25rem;">
+        <div id="step1-tab" style="flex:1;text-align:center;padding:.5rem;border-radius:9px;background:linear-gradient(135deg,var(--neon),var(--neon2));color:var(--dark);font-family:var(--font-display);font-weight:700;font-size:.85rem;letter-spacing:1px;cursor:pointer;" onclick="showStep(1)">01 — BASIC INFO</div>
+        <div id="step2-tab" style="flex:1;text-align:center;padding:.5rem;border-radius:9px;color:var(--text3);font-family:var(--font-display);font-weight:700;font-size:.85rem;letter-spacing:1px;cursor:pointer;" onclick="showStep(2)">02 — BODY STATS</div>
+        <div id="step3-tab" style="flex:1;text-align:center;padding:.5rem;border-radius:9px;color:var(--text3);font-family:var(--font-display);font-weight:700;font-size:.85rem;letter-spacing:1px;cursor:pointer;" onclick="showStep(3)">03 — GOALS</div>
+      </div>
+
+      <!-- Step 1 -->
+      <div class="card" id="signup-step1" style="padding:2.5rem;">
+        <div style="display:flex;flex-direction:column;gap:1.25rem;">
+          <div class="grid-2">
+            <div class="form-group">
+              <label class="form-label">Full Name</label>
+              <input class="form-input" id="su-name" type="text" placeholder="John Doe">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Email Address</label>
+              <input class="form-input" id="su-email" type="email" placeholder="you@example.com">
+            </div>
+          </div>
+          <div class="grid-2">
+            <div class="form-group">
+              <label class="form-label">Password</label>
+              <input class="form-input" id="su-password" type="password" placeholder="Min. 8 characters">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Confirm Password</label>
+              <input class="form-input" id="su-confirm" type="password" placeholder="Repeat password">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Gender</label>
+            <div class="radio-group">
+              <div class="radio-btn" id="gender-m" onclick="selectRadio('gender','m')">♂ Male</div>
+              <div class="radio-btn" id="gender-f" onclick="selectRadio('gender','f')">♀ Female</div>
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="showStep(2)" style="width:100%;justify-content:center;">Next: Body Stats →</button>
+          <div style="text-align:center;color:var(--text3);font-size:.85rem;">
+            Already have an account? <span style="color:var(--neon2);cursor:pointer;" onclick="goTo('signin')">Sign In</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="card" id="signup-step2" style="padding:2.5rem;display:none;">
+        <div style="display:flex;flex-direction:column;gap:1.25rem;">
+          <div class="grid-3" style="gap:1rem;">
+            <div class="form-group">
+              <label class="form-label">Age</label>
+              <input class="form-input" id="su-age" type="number" placeholder="25">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Height (cm)</label>
+              <input class="form-input" id="su-height" type="number" placeholder="175">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Weight (kg)</label>
+              <input class="form-input" id="su-weight" type="number" placeholder="75">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Activity Level</label>
+            <select class="form-select" id="su-activity">
+              <option value="">Select your activity level...</option>
+              <option>Sedentary — Office work, little exercise</option>
+              <option>Lightly Active — 1-3 workouts/week</option>
+              <option>Moderately Active — 3-5 workouts/week</option>
+              <option>Very Active — 6-7 workouts/week</option>
+              <option>Extremely Active — Athlete / Physical job</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Dietary Preference</label>
+            <select class="form-select" id="su-diet">
+              <option value="">Select dietary preference...</option>
+              <option>No Restrictions</option>
+              <option>Vegetarian</option>
+              <option>Vegan</option>
+              <option>Keto / Low Carb</option>
+              <option>Mediterranean</option>
+              <option>Gluten-Free</option>
+              <option>Halal</option>
+            </select>
+          </div>
+          <div style="display:flex;gap:1rem;">
+            <button class="btn btn-ghost" onclick="showStep(1)" style="flex:1;justify-content:center;">← Back</button>
+            <button class="btn btn-primary" onclick="showStep(3)" style="flex:1;justify-content:center;">Next: Goals →</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="card" id="signup-step3" style="padding:2.5rem;display:none;">
+        <div style="display:flex;flex-direction:column;gap:1.5rem;">
+          <div class="form-group">
+            <label class="form-label">Primary Fitness Goal</label>
+            <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:.75rem;margin-top:.25rem;">
+              <div class="radio-btn" id="goal-lose" onclick="selectRadio('goal','lose')" style="flex-direction:column;gap:.25rem;padding:1rem;">
+                <span style="font-size:1.5rem;">🔥</span><span>Lose Weight</span>
+              </div>
+              <div class="radio-btn" id="goal-build" onclick="selectRadio('goal','build')" style="flex-direction:column;gap:.25rem;padding:1rem;">
+                <span style="font-size:1.5rem;">💪</span><span>Build Muscle</span>
+              </div>
+              <div class="radio-btn" id="goal-fit" onclick="selectRadio('goal','fit')" style="flex-direction:column;gap:.25rem;padding:1rem;">
+                <span style="font-size:1.5rem;">⚡</span><span>Get Fit</span>
+              </div>
+              <div class="radio-btn" id="goal-maintain" onclick="selectRadio('goal','maintain')" style="flex-direction:column;gap:.25rem;padding:1rem;">
+                <span style="font-size:1.5rem;">⚖️</span><span>Maintain</span>
+              </div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Target Weight (optional)</label>
+            <input class="form-input" id="su-target" type="number" placeholder="e.g. 70 kg">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Time Frame</label>
+            <select class="form-select" id="su-timeframe">
+              <option>1–3 months</option>
+              <option>3–6 months</option>
+              <option>6–12 months</option>
+              <option>Long-term lifestyle change</option>
+            </select>
+          </div>
+          <div style="display:flex;gap:1rem;">
+            <button class="btn btn-ghost" onclick="showStep(2)" style="flex:1;justify-content:center;">← Back</button>
+            <button class="btn btn-primary" onclick="handleSignUp()" style="flex:1;justify-content:center;">🚀 Launch APEX AI</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     PAGE: DASHBOARD
+══════════════════════════════════════════════ -->
+<div class="page" id="page-dashboard">
+  <div class="dashboard-layout">
+    <aside class="sidebar">
+      <div class="sidebar-user">
+        <div class="avatar">A</div>
+        <div>
+          <div class="sidebar-user-name">Ahmed Hassan</div>
+          <div class="sidebar-user-sub"><span class="badge badge-green" style="font-size:.58rem;">Pro Member</span></div>
+        </div>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-title">Main</div>
+        <div class="sidebar-link active" onclick="goTo('dashboard')"><span class="icon">⊞</span> Dashboard</div>
+        <div class="sidebar-link" onclick="goTo('workout')"><span class="icon">⚡</span> Workouts</div>
+        <div class="sidebar-link" onclick="goTo('nutrition')"><span class="icon">🥗</span> Nutrition</div>
+        <div class="sidebar-link" onclick="goTo('chatbot')"><span class="icon">🤖</span> AI Coach</div>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-title">Tracking</div>
+        <div class="sidebar-link" onclick="goTo('progress')"><span class="icon">📊</span> Progress</div>
+        <div class="sidebar-link" onclick="goTo('gamification')"><span class="icon">🏆</span> Rewards</div>
+      </div>
+      <div class="sidebar-section" style="margin-top:auto;">
+        <div class="sidebar-link" onclick="goTo('landing')"><span class="icon">←</span> Logout</div>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <!-- Header -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2.5rem;flex-wrap:wrap;gap:1rem;">
+        <div>
+          <div class="section-tag">OVERVIEW</div>
+          <h1 data-greeting style="font-family:var(--font-display);font-size:2rem;font-weight:700;">Good morning, <span style="color:var(--neon);">Ahmed</span> 💪</h1>
+          <p style="color:var(--text2);margin-top:.25rem;">Day 14 of your transformation. You're crushing it!</p>
+        </div>
+        <div style="display:flex;gap:.75rem;align-items:center;">
+          <div class="badge badge-green"><span class="pulse-ring" style="width:6px;height:6px;"></span> AI Active</div>
+          <div style="width:40px;height:40px;border-radius:10px;background:var(--glass);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;">
+            🔔 <span style="position:absolute;top:6px;right:6px;width:6px;height:6px;background:var(--warn);border-radius:50%;"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- KPI Row -->
+      <div class="grid-4" style="margin-bottom:1.75rem;">
+        <div class="card" style="text-align:center;padding:1.25rem;">
+          <div style="font-size:1.5rem;margin-bottom:.5rem;">🔥</div>
+          <div data-kpi="calories" style="font-family:var(--font-display);font-size:1.8rem;font-weight:700;color:var(--warn);">2,200</div>
+          <div style="font-size:.75rem;color:var(--text3);letter-spacing:1.5px;text-transform:uppercase;margin-top:.2rem;">Daily Calorie Goal</div>
+        </div>
+        <div class="card card-neon" style="text-align:center;padding:1.25rem;">
+          <div style="font-size:1.5rem;margin-bottom:.5rem;">💪</div>
+          <div style="font-family:var(--font-display);font-size:1.8rem;font-weight:700;color:var(--neon);">6</div>
+          <div style="font-size:.75rem;color:var(--text3);letter-spacing:1.5px;text-transform:uppercase;margin-top:.2rem;">Exercises Done</div>
+        </div>
+        <div class="card" style="text-align:center;padding:1.25rem;">
+          <div style="font-size:1.5rem;margin-bottom:.5rem;">⚖️</div>
+          <div style="font-family:var(--font-display);font-size:1.8rem;font-weight:700;color:var(--neon2);">78.4kg</div>
+          <div style="font-size:.75rem;color:var(--text3);letter-spacing:1.5px;text-transform:uppercase;margin-top:.2rem;">Current Weight</div>
+        </div>
+        <div class="card card-neon" style="text-align:center;padding:1.25rem;">
+          <div style="font-size:1.5rem;margin-bottom:.5rem;">🔥</div>
+          <div style="font-family:var(--font-display);font-size:1.8rem;font-weight:700;color:var(--gold);">14</div>
+          <div style="font-size:.75rem;color:var(--text3);letter-spacing:1.5px;text-transform:uppercase;margin-top:.2rem;">Day Streak</div>
+        </div>
+      </div>
+
+      <!-- Main grid -->
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:1.75rem;margin-bottom:1.75rem;">
+
+        <!-- Today's Workout -->
+        <div class="card">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;">
+            <div>
+              <div class="section-tag" style="margin-bottom:.3rem;font-size:.65rem;">TODAY'S PLAN</div>
+              <h3 style="font-family:var(--font-display);font-size:1.2rem;font-weight:700;">Push Day — Chest & Triceps</h3>
+            </div>
+            <span class="badge badge-blue">6 exercises</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:.75rem;margin-bottom:1.25rem;">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:.6rem .8rem;background:rgba(0,255,136,.05);border:1px solid rgba(0,255,136,.12);border-radius:10px;">
+              <span style="font-size:.85rem;">Bench Press — 4×10</span>
+              <span style="color:var(--neon);font-size:.8rem;">✓ Done</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:.6rem .8rem;background:rgba(0,255,136,.05);border:1px solid rgba(0,255,136,.12);border-radius:10px;">
+              <span style="font-size:.85rem;">Incline Dumbbell — 3×12</span>
+              <span style="color:var(--neon);font-size:.8rem;">✓ Done</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:.6rem .8rem;background:rgba(0,212,255,.05);border:1px solid rgba(0,212,255,.2);border-radius:10px;">
+              <span style="font-size:.85rem;">Cable Flyes — 3×15</span>
+              <span style="color:var(--neon2);font-size:.8rem;">⟳ Active</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:.6rem .8rem;background:var(--glass);border:1px solid var(--border);border-radius:10px;">
+              <span style="font-size:.85rem;color:var(--text2);">Tricep Pushdowns — 4×12</span>
+              <span style="color:var(--text3);font-size:.8rem;">Upcoming</span>
+            </div>
+          </div>
+          <div style="margin-bottom:.5rem;display:flex;justify-content:space-between;font-size:.8rem;color:var(--text2);">
+            <span>Overall Progress</span><span style="color:var(--neon);">65%</span>
+          </div>
+          <div class="progress-bar"><div class="progress-fill" style="width:65%"></div></div>
+        </div>
+
+        <!-- Calories + Macros -->
+        <div style="display:flex;flex-direction:column;gap:1.5rem;">
+          <div class="card card-neon">
+            <div style="font-family:var(--font-display);font-size:1rem;font-weight:700;margin-bottom:1rem;">🔥 Calorie Target</div>
+            <div style="display:flex;justify-content:space-between;font-size:.8rem;color:var(--text2);margin-bottom:.4rem;">
+              <span>1,840 eaten</span><span style="color:var(--neon);">2,200 goal</span>
+            </div>
+            <div class="progress-bar" style="height:12px;margin-bottom:.5rem;"><div class="progress-fill" style="width:84%"></div></div>
+            <div style="font-size:.75rem;color:var(--text3);">360 calories remaining</div>
+          </div>
+
+          <div class="card">
+            <div style="font-family:var(--font-display);font-size:1rem;font-weight:700;margin-bottom:1rem;">Macronutrients</div>
+            <div style="display:flex;flex-direction:column;gap:.75rem;">
+              <div>
+                <div style="display:flex;justify-content:space-between;font-size:.8rem;margin-bottom:.3rem;"><span style="color:var(--neon2);">Protein</span><span>148g / 175g</span></div>
+                <div class="progress-bar"><div class="progress-fill purple" style="width:85%"></div></div>
+              </div>
+              <div>
+                <div style="display:flex;justify-content:space-between;font-size:.8rem;margin-bottom:.3rem;"><span style="color:var(--gold);">Carbs</span><span>210g / 250g</span></div>
+                <div class="progress-bar"><div class="progress-fill orange" style="width:84%"></div></div>
+              </div>
+              <div>
+                <div style="display:flex;justify-content:space-between;font-size:.8rem;margin-bottom:.3rem;"><span style="color:var(--warn);">Fats</span><span>52g / 65g</span></div>
+                <div class="progress-bar"><div class="progress-fill orange" style="width:80%"></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dashboard Action Buttons -->
+      <div style="display:flex;gap:.75rem;margin-bottom:1.75rem;flex-wrap:wrap;">
+        <button class="btn btn-ghost btn-sm" onclick="openProfileModal()">⚙️ Update Profile & Stats</button>
+        <button class="btn btn-ghost btn-sm" onclick="openProgressLog()">📝 Log Today's Progress</button>
+        <button class="btn btn-primary btn-sm" onclick="goTo('chatbot')">🧠 Ask AI Coach</button>
+      </div>
+
+      <!-- Bottom Row: Charts -->
+      <div class="grid-2" style="gap:1.75rem;margin-bottom:1.75rem;">
+        <!-- Weight Progress Chart -->
+        <div class="card">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;">
+            <h3 style="font-family:var(--font-display);font-size:1.1rem;font-weight:700;">⚖️ Weight Progress</h3>
+            <span class="badge badge-green">−6.6kg total</span>
+          </div>
+          <div class="chart-wrapper"><canvas id="weightChart"></canvas></div>
+        </div>
+
+        <!-- Calories Burned Chart -->
+        <div class="card card-neon">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;">
+            <h3 style="font-family:var(--font-display);font-size:1.1rem;font-weight:700;">🔥 Calories This Week</h3>
+            <span class="badge badge-blue">+12% avg</span>
+          </div>
+          <div class="chart-wrapper"><canvas id="caloriesChart"></canvas></div>
+        </div>
+      </div>
+
+      <!-- BMI + Workout Completion -->
+      <div class="grid-2" style="gap:1.75rem;margin-bottom:1.75rem;">
+        <div class="card" style="text-align:center;padding:2rem;">
+          <div style="font-family:var(--font-display);font-size:1.1rem;font-weight:700;margin-bottom:1.25rem;">📊 BMI Calculator</div>
+          <div id="bmi-display" style="font-family:var(--font-display);font-size:3.5rem;font-weight:700;color:var(--neon);">25.6</div>
+          <div style="font-size:.9rem;color:var(--text2);margin:.25rem 0;" id="bmi-category">Normal Weight</div>
+          <div style="margin:1rem auto;max-width:300px;">
+            <div style="height:10px;border-radius:99px;background:linear-gradient(90deg,#3498db 0%,#2ecc71 25%,#f1c40f 50%,#e67e22 75%,#e74c3c 100%);position:relative;margin-bottom:.5rem;">
+              <div id="bmi-indicator" style="position:absolute;top:-4px;width:18px;height:18px;border-radius:50%;background:#fff;border:3px solid var(--dark);box-shadow:0 2px 8px rgba(0,0,0,.5);transform:translateX(-50%);left:40%;transition:left 1s ease;"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:.65rem;color:var(--text3);">
+              <span>Underweight</span><span>Normal</span><span>Overweight</span><span>Obese</span>
+            </div>
+          </div>
+          <div style="font-size:.8rem;color:var(--text3);">Height: <span id="profile-height-display">175</span>cm · Weight: <span id="profile-weight-display">78.4</span>kg</div>
+        </div>
+        <div class="card card-neon">
+          <div style="font-family:var(--font-display);font-size:1.1rem;font-weight:700;margin-bottom:1.25rem;">🏋️ Workout Completion Rate</div>
+          <div class="chart-wrapper"><canvas id="completionChart"></canvas></div>
+        </div>
+      </div>
+
+      <!-- AI Recommendations -->
+      <div class="card card-neon" style="margin-bottom:1.75rem;">
+        <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:1.25rem;">
+          <div style="width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,var(--neon),var(--neon2));display:flex;align-items:center;justify-content:center;font-size:.8rem;">🧠</div>
+          <h3 style="font-family:var(--font-display);font-size:1.1rem;font-weight:700;">AI Recommendations</h3>
+        </div>
+        <div class="grid-3" style="gap:.75rem;">
+          <div style="display:flex;gap:.75rem;align-items:flex-start;padding:.75rem;background:rgba(0,255,136,.04);border-radius:10px;border:1px solid rgba(0,255,136,.1);">
+            <span style="font-size:1.2rem;flex-shrink:0;">💤</span>
+            <div><div style="font-size:.85rem;font-weight:600;color:var(--neon);">Recovery</div><div style="font-size:.78rem;color:var(--text2);margin-top:.2rem;">Sleep quality is excellent. Push intensity +10% today.</div></div>
+          </div>
+          <div style="display:flex;gap:.75rem;align-items:flex-start;padding:.75rem;background:rgba(0,212,255,.04);border-radius:10px;border:1px solid rgba(0,212,255,.1);">
+            <span style="font-size:1.2rem;flex-shrink:0;">💧</span>
+            <div><div style="font-size:.85rem;font-weight:600;color:var(--neon2);">Hydration</div><div style="font-size:.78rem;color:var(--text2);margin-top:.2rem;">Drink 0.5L more water before your evening session.</div></div>
+          </div>
+          <div style="display:flex;gap:.75rem;align-items:flex-start;padding:.75rem;background:rgba(123,92,255,.04);border-radius:10px;border:1px solid rgba(123,92,255,.1);">
+            <span style="font-size:1.2rem;flex-shrink:0;">🥩</span>
+            <div><div style="font-size:.85rem;font-weight:600;color:var(--neon3);">Protein Timing</div><div style="font-size:.78rem;color:var(--text2);margin-top:.2rem;">Have a protein shake within 30 min post-workout.</div></div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- PROFILE MODAL -->
+<div id="profile-modal" style="display:none;position:fixed;inset:0;z-index:5000;background:rgba(0,0,0,.75);backdrop-filter:blur(8px);align-items:center;justify-content:center;">
+  <div class="modal-box" style="background:var(--dark2);border:1px solid var(--border);border-radius:20px;padding:2.5rem;width:100%;max-width:520px;position:relative;max-height:90vh;overflow-y:auto;">
+    <button onclick="closeProfileModal()" style="position:absolute;top:1rem;right:1.25rem;background:none;border:none;color:var(--text2);font-size:1.4rem;cursor:pointer;">✕</button>
+    <div class="section-tag" style="margin-bottom:.5rem;font-size:.65rem;">PROFILE SETTINGS</div>
+    <h2 style="font-family:var(--font-display);font-size:1.6rem;font-weight:700;margin-bottom:1.5rem;">Update Your <span style="color:var(--neon2);">Profile</span></h2>
+    <div style="display:flex;flex-direction:column;gap:1.1rem;">
+      <div class="grid-2" style="gap:1rem;">
+        <div class="form-group"><label class="form-label">Full Name</label><input class="form-input" id="p-name" placeholder="Your name"></div>
+        <div class="form-group"><label class="form-label">Age</label><input class="form-input" type="number" id="p-age" placeholder="25"></div>
+      </div>
+      <div class="grid-3" style="gap:1rem;">
+        <div class="form-group"><label class="form-label">Weight (kg)</label><input class="form-input" type="number" id="p-weight" placeholder="75" step="0.1"></div>
+        <div class="form-group"><label class="form-label">Height (cm)</label><input class="form-input" type="number" id="p-height" placeholder="175"></div>
+        <div class="form-group"><label class="form-label">Target (kg)</label><input class="form-input" type="number" id="p-target" placeholder="70" step="0.1"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Gender &amp; Theme</label>
+        <div class="radio-group">
+          <div class="radio-btn" id="pg-m" onclick="selectProfileGender('m')">♂ Male — Navy Blue</div>
+          <div class="radio-btn" id="pg-f" onclick="selectProfileGender('f')">♀ Female — Pink</div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Activity Level</label>
+        <select class="form-select" id="p-activity">
+          <option value="1.2">Sedentary</option>
+          <option value="1.375">Lightly Active</option>
+          <option value="1.55" selected>Moderately Active</option>
+          <option value="1.725">Very Active</option>
+          <option value="1.9">Extremely Active</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Fitness Goal</label>
+        <select class="form-select" id="p-goal">
+          <option value="lose">Lose Weight</option>
+          <option value="build">Build Muscle</option>
+          <option value="maintain">Maintain</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" onclick="saveProfile()" style="width:100%;justify-content:center;">💾 Save &amp; Update Dashboard</button>
+    </div>
+  </div>
+</div>
+
+<!-- PROGRESS LOG MODAL -->
+<div id="progress-log-modal" style="display:none;position:fixed;inset:0;z-index:5000;background:rgba(0,0,0,.75);backdrop-filter:blur(8px);align-items:center;justify-content:center;">
+  <div class="modal-box" style="background:var(--dark2);border:1px solid var(--border);border-radius:20px;padding:2.5rem;width:100%;max-width:520px;position:relative;">
+    <button onclick="closeProgressLog()" style="position:absolute;top:1rem;right:1.25rem;background:none;border:none;color:var(--text2);font-size:1.4rem;cursor:pointer;">✕</button>
+    <div class="section-tag" style="margin-bottom:.5rem;font-size:.65rem;">DAILY TRACKING</div>
+    <h2 style="font-family:var(--font-display);font-size:1.6rem;font-weight:700;margin-bottom:1.5rem;">Log Today's <span style="color:var(--neon2);">Progress</span></h2>
+    <div style="display:flex;flex-direction:column;gap:1.1rem;">
+      <div class="grid-2" style="gap:1rem;">
+        <div class="form-group"><label class="form-label">Today's Weight (kg)</label><input class="form-input" type="number" id="log-weight" placeholder="75.0" step="0.1"></div>
+        <div class="form-group"><label class="form-label">Calories Consumed</label><input class="form-input" type="number" id="log-calories" placeholder="1840"></div>
+      </div>
+      <div class="grid-2" style="gap:1rem;">
+        <div class="form-group"><label class="form-label">Workouts Completed</label><input class="form-input" type="number" id="log-workouts" placeholder="1" min="0" max="10"></div>
+        <div class="form-group"><label class="form-label">Water (glasses)</label><input class="form-input" type="number" id="log-water" placeholder="8" min="0" max="20"></div>
+      </div>
+      <div class="form-group"><label class="form-label">Notes</label><input class="form-input" id="log-notes" placeholder="How did today's session go?"></div>
+      <button class="btn btn-primary" onclick="saveProgressLog()" style="width:100%;justify-content:center;">📊 Save Progress Entry</button>
+    </div>
+  </div>
+</div>
+
+
+
+<!-- ══════════════════════════════════════════════
+     PAGE: WORKOUT
+══════════════════════════════════════════════ -->
+<div class="page" id="page-workout">
+  <div class="dashboard-layout">
+    <aside class="sidebar">
+      <div class="sidebar-user"><div class="avatar">A</div><div><div class="sidebar-user-name">Ahmed Hassan</div></div></div>
+      <div class="sidebar-link" onclick="goTo('dashboard')"><span class="icon">⊞</span> Dashboard</div>
+      <div class="sidebar-link active"><span class="icon">⚡</span> Workouts</div>
+      <div class="sidebar-link" onclick="goTo('nutrition')"><span class="icon">🥗</span> Nutrition</div>
+      <div class="sidebar-link" onclick="goTo('chatbot')"><span class="icon">🤖</span> AI Coach</div>
+      <div class="sidebar-link" onclick="goTo('progress')"><span class="icon">📊</span> Progress</div>
+      <div class="sidebar-link" onclick="goTo('gamification')"><span class="icon">🏆</span> Rewards</div>
+    </aside>
+    <main class="main-content">
+      <div class="section-tag">AI-GENERATED</div>
+      <h1 style="font-family:var(--font-display);font-size:2rem;font-weight:700;margin-bottom:1.5rem;">Today's <em style="font-style:normal;color:var(--neon2);">Workout Plan</em></h1>
+
+      <!-- Exercise Cards -->
+      <div class="grid-3" style="margin-bottom:2.5rem;">
+        <div class="card card-neon exercise-card">
+          <div class="exercise-num">01</div>
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.75rem;">
+            <span class="badge badge-blue">Compound</span>
+            <span style="font-size:.75rem;color:var(--text3);">4 × 10</span>
+          </div>
+          <h3 style="font-family:var(--font-display);font-size:1.2rem;font-weight:700;color:var(--neon);margin-bottom:.3rem;">Bench Press</h3>
+          <p style="font-size:.8rem;color:var(--text2);">Primary: Chest, Secondary: Triceps, Shoulders</p>
+          <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border);display:flex;justify-content:space-between;font-size:.8rem;">
+            <span style="color:var(--text3);">Target: <b style="color:var(--text);">80 kg</b></span>
+            <span style="color:var(--neon);">✓ Completed</span>
+          </div>
+        </div>
+        <div class="card exercise-card">
+          <div class="exercise-num">02</div>
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.75rem;">
+            <span class="badge badge-green">Isolation</span>
+            <span style="font-size:.75rem;color:var(--text3);">3 × 12</span>
+          </div>
+          <h3 style="font-family:var(--font-display);font-size:1.2rem;font-weight:700;color:var(--neon2);margin-bottom:.3rem;">Incline Dumbbell</h3>
+          <p style="font-size:.8rem;color:var(--text2);">Primary: Upper Chest, Secondary: Front Delts</p>
+          <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border);display:flex;justify-content:space-between;font-size:.8rem;">
+            <span style="color:var(--text3);">Target: <b style="color:var(--text);">28 kg</b></span>
+            <span style="color:var(--neon);">✓ Completed</span>
+          </div>
+        </div>
+        <div class="card card-neon exercise-card">
+          <div class="exercise-num">03</div>
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.75rem;">
+            <span class="badge badge-purple">Cable</span>
+            <span style="font-size:.75rem;color:var(--neon2);">⟳ Active</span>
+          </div>
+          <h3 style="font-family:var(--font-display);font-size:1.2rem;font-weight:700;color:var(--neon3);margin-bottom:.3rem;">Cable Flyes</h3>
+          <p style="font-size:.8rem;color:var(--text2);">Primary: Chest (stretch focus)</p>
+          <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border);display:flex;justify-content:space-between;font-size:.8rem;">
+            <span style="color:var(--text3);">Target: <b style="color:var(--text);">15 kg</b></span>
+            <span style="color:var(--neon2);">Set 2/3</span>
+          </div>
+        </div>
+        <div class="card exercise-card">
+          <div class="exercise-num">04</div>
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.75rem;">
+            <span class="badge badge-blue">Compound</span>
+            <span style="font-size:.75rem;color:var(--text3);">4 × 12</span>
+          </div>
+          <h3 style="font-family:var(--font-display);font-size:1.2rem;font-weight:700;color:var(--neon2);margin-bottom:.3rem;">Tricep Pushdowns</h3>
+          <p style="font-size:.8rem;color:var(--text2);">Primary: Triceps (all heads)</p>
+          <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border);display:flex;justify-content:space-between;font-size:.8rem;">
+            <span style="color:var(--text3);">Target: <b style="color:var(--text);">20 kg</b></span>
+            <span style="color:var(--text3);">Upcoming</span>
+          </div>
+        </div>
+        <div class="card card-neon exercise-card">
+          <div class="exercise-num">05</div>
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.75rem;">
+            <span class="badge badge-green">Isolation</span>
+            <span style="font-size:.75rem;color:var(--text3);">3 × 15</span>
+          </div>
+          <h3 style="font-family:var(--font-display);font-size:1.2rem;font-weight:700;color:var(--neon);margin-bottom:.3rem;">Skull Crushers</h3>
+          <p style="font-size:.8rem;color:var(--text2);">Primary: Long head triceps</p>
+          <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border);display:flex;justify-content:space-between;font-size:.8rem;">
+            <span style="color:var(--text3);">Target: <b style="color:var(--text);">25 kg</b></span>
+            <span style="color:var(--text3);">Upcoming</span>
+          </div>
+        </div>
+        <div class="card exercise-card">
+          <div class="exercise-num">06</div>
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.75rem;">
+            <span class="badge badge-gold">Finisher</span>
+            <span style="font-size:.75rem;color:var(--text3);">3 × failure</span>
+          </div>
+          <h3 style="font-family:var(--font-display);font-size:1.2rem;font-weight:700;color:var(--gold);margin-bottom:.3rem;">Diamond Push-ups</h3>
+          <p style="font-size:.8rem;color:var(--text2);">Bodyweight finisher for peak contraction</p>
+          <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border);display:flex;justify-content:space-between;font-size:.8rem;">
+            <span style="color:var(--text3);">Bodyweight</span>
+            <span style="color:var(--text3);">Upcoming</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- AI Camera Section — v2.0 CV Engine -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.75rem;">
+        <div class="card">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+            <h3 style="font-family:var(--font-display);font-size:1.1rem;font-weight:700;">🎥 AI Posture Detection</h3>
+            <span class="badge badge-green" id="cv-status-badge">Computer Vision</span>
+          </div>
+
+          <!-- Exercise selector -->
+          <div style="display:flex;gap:.5rem;margin-bottom:.85rem;flex-wrap:wrap;" id="exercise-selector">
+            <button onclick="CV.setExercise('squat')"    id="ex-squat"   class="btn btn-ghost btn-sm" style="flex:1;">🦵 Squat</button>
+            <button onclick="CV.setExercise('pushup')"   id="ex-pushup"  class="btn btn-ghost btn-sm" style="flex:1;">💪 Push-up</button>
+            <button onclick="CV.setExercise('plank')"    id="ex-plank"   class="btn btn-ghost btn-sm" style="flex:1;">🏋️ Plank</button>
+          </div>
+
+          <!-- Camera viewport with canvas overlay -->
+          <div class="camera-box" id="camera-box" style="position:relative;padding:0;overflow:hidden;min-height:280px;cursor:pointer;" onclick="CV.toggle()">
+            <video id="cv-video" autoplay playsinline muted
+              style="width:100%;height:100%;object-fit:cover;display:none;border-radius:12px;transform:scaleX(-1);"></video>
+            <canvas id="cv-canvas"
+              style="position:absolute;top:0;left:0;width:100%;height:100%;border-radius:12px;transform:scaleX(-1);pointer-events:none;"></canvas>
+
+            <!-- Idle state (shown when camera is off) -->
+            <div id="cv-idle" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;">
+              <div class="camera-icon">📷</div>
+              <div style="font-family:var(--font-display);font-size:1.1rem;font-weight:600;color:var(--neon);" id="camera-label">Start Camera</div>
+              <div style="font-size:.8rem;color:var(--text3);">AI will analyze your form in real-time</div>
+            </div>
+
+            <!-- HUD overlay (shown when camera is on) -->
+            <div id="cv-hud" style="display:none;position:absolute;top:8px;left:8px;right:8px;pointer-events:none;">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+                <div style="background:rgba(3,8,16,.75);border:1px solid var(--neon);border-radius:8px;padding:.3rem .6rem;">
+                  <div style="font-family:var(--font-mono);font-size:.6rem;color:var(--neon);letter-spacing:2px;">EXERCISE</div>
+                  <div style="font-family:var(--font-display);font-size:.9rem;font-weight:700;color:#fff;" id="hud-exercise">SQUAT</div>
+                </div>
+                <div style="background:rgba(3,8,16,.75);border:1px solid var(--neon2);border-radius:8px;padding:.3rem .8rem;text-align:center;">
+                  <div style="font-family:var(--font-mono);font-size:.6rem;color:var(--neon2);letter-spacing:2px;">REPS</div>
+                  <div style="font-family:var(--font-display);font-size:1.6rem;font-weight:700;color:var(--neon2);line-height:1;" id="hud-reps">0</div>
+                </div>
+              </div>
+              <div style="margin-top:.5rem;background:rgba(3,8,16,.75);border:1px solid var(--border);border-radius:8px;padding:.3rem .6rem;display:flex;align-items:center;gap:.5rem;">
+                <span style="font-family:var(--font-mono);font-size:.6rem;color:var(--text3);letter-spacing:1px;">STAGE:</span>
+                <span style="font-family:var(--font-display);font-size:.85rem;font-weight:700;" id="hud-stage">—</span>
+                <span style="margin-left:auto;font-family:var(--font-mono);font-size:.6rem;" id="hud-fps" style="color:var(--text3);">— FPS</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Live analysis ticker -->
+          <div id="camera-tips" style="display:none;margin-top:.85rem;padding:.7rem .85rem;background:rgba(0,255,136,.05);border:1px solid rgba(0,255,136,.2);border-radius:10px;">
+            <div style="display:flex;gap:.5rem;align-items:center;margin-bottom:.3rem;">
+              <span style="width:8px;height:8px;border-radius:50%;background:var(--neon);display:inline-block;animation:blink 1s infinite;"></span>
+              <span style="font-family:var(--font-mono);font-size:.7rem;color:var(--neon);">LIVE ANALYSIS</span>
+              <span style="margin-left:auto;font-family:var(--font-mono);font-size:.65rem;color:var(--text3);" id="cv-confidence">Confidence: —</span>
+            </div>
+            <div style="font-size:.83rem;color:var(--text);" id="cv-live-text">Initializing pose model…</div>
+          </div>
+        </div>
+
+        <!-- Real-time Feedback — dynamically updated by CV engine -->
+        <div class="card card-neon" id="feedback-box">
+          <div style="font-family:var(--font-display);font-size:1.1rem;font-weight:700;margin-bottom:1.25rem;">⚡ Real-Time Feedback</div>
+          <div style="display:flex;flex-direction:column;gap:.75rem;" id="feedback-list">
+
+            <!-- Form Score -->
+            <div style="padding:.85rem;background:rgba(0,255,136,.05);border:1px solid rgba(0,255,136,.15);border-radius:12px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;">
+                <span style="font-size:.85rem;font-weight:600;color:var(--neon);">Overall Form Score</span>
+                <span style="font-family:var(--font-display);font-size:1.3rem;font-weight:700;color:var(--neon);" id="fb-score">—</span>
+              </div>
+              <div class="progress-bar"><div class="progress-fill" id="fb-score-bar" style="width:0%"></div></div>
+            </div>
+
+            <!-- Dynamic feedback items injected by CV engine -->
+            <div id="fb-item-1" style="padding:.85rem;background:rgba(0,212,255,.05);border:1px solid rgba(0,212,255,.15);border-radius:12px;">
+              <div style="display:flex;gap:.5rem;align-items:center;margin-bottom:.3rem;">
+                <span id="fb-icon-1" style="color:var(--neon2);">ℹ</span>
+                <span id="fb-title-1" style="font-size:.85rem;font-weight:600;color:var(--neon2);">Waiting for camera…</span>
+              </div>
+              <div id="fb-msg-1" style="font-size:.78rem;color:var(--text2);">Select an exercise and start the camera to begin analysis.</div>
+            </div>
+
+            <div id="fb-item-2" style="padding:.85rem;background:rgba(0,212,255,.05);border:1px solid rgba(0,212,255,.15);border-radius:12px;display:none;">
+              <div style="display:flex;gap:.5rem;align-items:center;margin-bottom:.3rem;">
+                <span id="fb-icon-2">⚠</span>
+                <span id="fb-title-2" style="font-size:.85rem;font-weight:600;"></span>
+              </div>
+              <div id="fb-msg-2" style="font-size:.78rem;color:var(--text2);"></div>
+            </div>
+
+            <div id="fb-item-3" style="padding:.85rem;background:rgba(0,212,255,.05);border:1px solid rgba(0,212,255,.15);border-radius:12px;display:none;">
+              <div style="display:flex;gap:.5rem;align-items:center;margin-bottom:.3rem;">
+                <span id="fb-icon-3">✓</span>
+                <span id="fb-title-3" style="font-size:.85rem;font-weight:600;"></span>
+              </div>
+              <div id="fb-msg-3" style="font-size:.78rem;color:var(--text2);"></div>
+            </div>
+
+            <!-- Session stats -->
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.5rem;margin-top:.25rem;">
+              <div style="text-align:center;padding:.6rem;background:var(--glass);border:1px solid var(--border);border-radius:10px;">
+                <div style="font-family:var(--font-display);font-size:1.3rem;font-weight:700;color:var(--neon);" id="stat-reps">0</div>
+                <div style="font-size:.65rem;color:var(--text3);text-transform:uppercase;letter-spacing:1px;">Reps</div>
+              </div>
+              <div style="text-align:center;padding:.6rem;background:var(--glass);border:1px solid var(--border);border-radius:10px;">
+                <div style="font-family:var(--font-display);font-size:1.3rem;font-weight:700;color:var(--gold);" id="stat-sets">0</div>
+                <div style="font-size:.65rem;color:var(--text3);text-transform:uppercase;letter-spacing:1px;">Sets</div>
+              </div>
+              <div style="text-align:center;padding:.6rem;background:var(--glass);border:1px solid var(--border);border-radius:10px;">
+                <div style="font-family:var(--font-display);font-size:1.3rem;font-weight:700;color:var(--neon2);" id="stat-avg">—</div>
+                <div style="font-size:.65rem;color:var(--text3);text-transform:uppercase;letter-spacing:1px;">Avg Score</div>
+              </div>
+            </div>
+
+            <button class="btn btn-ghost btn-sm" onclick="CV.resetSession()" style="width:100%;justify-content:center;margin-top:.25rem;">🔄 Reset Session</button>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     PAGE: NUTRITION
+══════════════════════════════════════════════ -->
+<div class="page" id="page-nutrition">
+  <div class="dashboard-layout">
+    <aside class="sidebar">
+      <div class="sidebar-user"><div class="avatar">A</div><div><div class="sidebar-user-name">Ahmed Hassan</div></div></div>
+      <div class="sidebar-link" onclick="goTo('dashboard')"><span class="icon">⊞</span> Dashboard</div>
+      <div class="sidebar-link" onclick="goTo('workout')"><span class="icon">⚡</span> Workouts</div>
+      <div class="sidebar-link active"><span class="icon">🥗</span> Nutrition</div>
+      <div class="sidebar-link" onclick="goTo('chatbot')"><span class="icon">🤖</span> AI Coach</div>
+      <div class="sidebar-link" onclick="goTo('progress')"><span class="icon">📊</span> Progress</div>
+      <div class="sidebar-link" onclick="goTo('gamification')"><span class="icon">🏆</span> Rewards</div>
+    </aside>
+    <main class="main-content">
+      <div class="section-tag">PRECISION NUTRITION</div>
+      <h1 style="font-family:var(--font-display);font-size:2rem;font-weight:700;margin-bottom:1.75rem;">Today's <em style="font-style:normal;color:var(--neon2);">Meal Plan</em></h1>
+
+      <!-- Calorie + Macros Summary -->
+      <div class="grid-4" style="margin-bottom:2rem;">
+        <div class="card" style="text-align:center;padding:1.5rem;">
+          <div style="font-size:.7rem;color:var(--text3);letter-spacing:2px;text-transform:uppercase;font-family:var(--font-mono);margin-bottom:.5rem;">Daily Goal</div>
+          <div style="font-family:var(--font-display);font-size:2.2rem;font-weight:700;color:var(--neon);">2,200</div>
+          <div style="font-size:.75rem;color:var(--text2);">calories</div>
+        </div>
+        <div class="card card-neon" style="text-align:center;padding:1.5rem;">
+          <div style="font-size:.7rem;color:var(--text3);letter-spacing:2px;text-transform:uppercase;font-family:var(--font-mono);margin-bottom:.5rem;">Protein</div>
+          <div style="font-family:var(--font-display);font-size:2.2rem;font-weight:700;color:var(--neon3);">175g</div>
+          <div style="font-size:.75rem;color:var(--text2);">target</div>
+        </div>
+        <div class="card" style="text-align:center;padding:1.5rem;">
+          <div style="font-size:.7rem;color:var(--text3);letter-spacing:2px;text-transform:uppercase;font-family:var(--font-mono);margin-bottom:.5rem;">Carbs</div>
+          <div style="font-family:var(--font-display);font-size:2.2rem;font-weight:700;color:var(--gold);">250g</div>
+          <div style="font-size:.75rem;color:var(--text2);">target</div>
+        </div>
+        <div class="card card-neon" style="text-align:center;padding:1.5rem;">
+          <div style="font-size:.7rem;color:var(--text3);letter-spacing:2px;text-transform:uppercase;font-family:var(--font-mono);margin-bottom:.5rem;">Fats</div>
+          <div style="font-family:var(--font-display);font-size:2.2rem;font-weight:700;color:var(--warn);">65g</div>
+          <div style="font-size:.75rem;color:var(--text2);">target</div>
+        </div>
+      </div>
+
+      <!-- Macro rings + meals -->
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:2rem;margin-bottom:2rem;align-items:start;">
+        <!-- Macro Rings -->
+        <div class="card" style="min-width:220px;">
+          <h3 style="font-family:var(--font-display);font-size:1rem;font-weight:700;margin-bottom:1.25rem;">Macros Breakdown</h3>
+          <div style="display:flex;flex-direction:column;gap:1.25rem;">
+            <div style="display:flex;align-items:center;gap:1rem;">
+              <svg width="80" height="80" viewBox="0 0 80 80">
+                <circle cx="40" cy="40" r="32" fill="none" stroke="rgba(123,92,255,.15)" stroke-width="8"/>
+                <circle cx="40" cy="40" r="32" fill="none" stroke="#7b5cff" stroke-width="8" stroke-dasharray="201 201" stroke-dashoffset="30" transform="rotate(-90 40 40)" stroke-linecap="round"/>
+              </svg>
+              <div><div style="font-weight:700;color:var(--neon3);">Protein</div><div style="font-size:.85rem;color:var(--text2);">148 / 175g</div><div class="badge badge-purple" style="margin-top:.3rem;font-size:.58rem;">85%</div></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:1rem;">
+              <svg width="80" height="80" viewBox="0 0 80 80">
+                <circle cx="40" cy="40" r="32" fill="none" stroke="rgba(255,217,61,.15)" stroke-width="8"/>
+                <circle cx="40" cy="40" r="32" fill="none" stroke="#ffd93d" stroke-width="8" stroke-dasharray="201 201" stroke-dashoffset="32" transform="rotate(-90 40 40)" stroke-linecap="round"/>
+              </svg>
+              <div><div style="font-weight:700;color:var(--gold);">Carbs</div><div style="font-size:.85rem;color:var(--text2);">210 / 250g</div><div class="badge badge-gold" style="margin-top:.3rem;font-size:.58rem;">84%</div></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:1rem;">
+              <svg width="80" height="80" viewBox="0 0 80 80">
+                <circle cx="40" cy="40" r="32" fill="none" stroke="rgba(255,107,53,.15)" stroke-width="8"/>
+                <circle cx="40" cy="40" r="32" fill="none" stroke="#ff6b35" stroke-width="8" stroke-dasharray="201 201" stroke-dashoffset="40" transform="rotate(-90 40 40)" stroke-linecap="round"/>
+              </svg>
+              <div><div style="font-weight:700;color:var(--warn);">Fats</div><div style="font-size:.85rem;color:var(--text2);">52 / 65g</div><div class="badge" style="color:var(--warn);border-color:var(--warn);background:rgba(255,107,53,.06);font-size:.58rem;">80%</div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Meals -->
+        <div style="display:flex;flex-direction:column;gap:1rem;">
+          <div class="card meal-card">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem;">
+              <div style="display:flex;align-items:center;gap:.75rem;">
+                <span style="font-size:2rem;">🌅</span>
+                <div><div style="font-weight:700;font-size:.95rem;">Breakfast</div><div style="font-size:.75rem;color:var(--text3);">7:00 AM · 520 cal</div></div>
+              </div>
+              <span class="badge badge-green">✓ Logged</span>
+            </div>
+            <p style="font-size:.85rem;color:var(--text2);">Greek yogurt parfait + 3 scrambled eggs + whole grain toast + orange juice</p>
+          </div>
+          <div class="card card-neon meal-card">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem;">
+              <div style="display:flex;align-items:center;gap:.75rem;">
+                <span style="font-size:2rem;">☀️</span>
+                <div><div style="font-weight:700;font-size:.95rem;">Lunch</div><div style="font-size:.75rem;color:var(--text3);">1:00 PM · 680 cal</div></div>
+              </div>
+              <span class="badge badge-green">✓ Logged</span>
+            </div>
+            <p style="font-size:.85rem;color:var(--text2);">Grilled chicken breast 200g + brown rice 150g + mixed salad + olive oil dressing</p>
+          </div>
+          <div class="card meal-card">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem;">
+              <div style="display:flex;align-items:center;gap:.75rem;">
+                <span style="font-size:2rem;">🌙</span>
+                <div><div style="font-weight:700;font-size:.95rem;">Dinner</div><div style="font-size:.75rem;color:var(--text3);">7:30 PM · 640 cal</div></div>
+              </div>
+              <span class="badge badge-blue">Suggested</span>
+            </div>
+            <p style="font-size:.85rem;color:var(--text2);">Salmon fillet 180g + sweet potato 200g + steamed broccoli + lemon sauce</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Upload food -->
+      <div class="card" style="text-align:center;padding:2.5rem;border-style:dashed;cursor:pointer;" onclick="this.style.borderColor='var(--neon)'">
+        <div style="font-size:2.5rem;margin-bottom:.75rem;">📸</div>
+        <h3 style="font-family:var(--font-display);font-size:1.2rem;font-weight:700;color:var(--neon2);margin-bottom:.5rem;">Log Food with AI Vision</h3>
+        <p style="color:var(--text2);font-size:.85rem;margin-bottom:1.25rem;">Take a photo of your meal and our AI will instantly calculate the nutritional content</p>
+        <button class="btn btn-ghost btn-sm">📤 Upload Food Image</button>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     PAGE: CHATBOT
+══════════════════════════════════════════════ -->
+<div class="page" id="page-chatbot">
+  <div class="dashboard-layout">
+    <aside class="sidebar">
+      <div class="sidebar-user"><div class="avatar">A</div><div><div class="sidebar-user-name">Ahmed Hassan</div></div></div>
+      <div class="sidebar-link" onclick="goTo('dashboard')"><span class="icon">⊞</span> Dashboard</div>
+      <div class="sidebar-link" onclick="goTo('workout')"><span class="icon">⚡</span> Workouts</div>
+      <div class="sidebar-link" onclick="goTo('nutrition')"><span class="icon">🥗</span> Nutrition</div>
+      <div class="sidebar-link active"><span class="icon">🤖</span> AI Coach</div>
+      <div class="sidebar-link" onclick="goTo('progress')"><span class="icon">📊</span> Progress</div>
+      <div class="sidebar-link" onclick="goTo('gamification')"><span class="icon">🏆</span> Rewards</div>
+    </aside>
+    <main class="main-content" style="padding:1.5rem;display:flex;flex-direction:column;height:calc(100vh - 64px);">
+      <!-- Chat header -->
+      <div style="display:flex;align-items:center;gap:1rem;padding:1rem 1.5rem;background:var(--dark2);border-radius:16px 16px 0 0;border:1px solid var(--border);border-bottom:0;flex-shrink:0;">
+        <div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,var(--neon),var(--neon2));display:flex;align-items:center;justify-content:center;font-size:1.3rem;box-shadow:0 0 20px rgba(0,255,136,.3);">🧠</div>
+        <div>
+          <div style="font-family:var(--font-display);font-weight:700;font-size:1rem;">APEX AI Coach</div>
+          <div style="display:flex;align-items:center;gap:.4rem;font-size:.75rem;color:var(--text2);">
+            <span class="pulse-ring" style="width:6px;height:6px;"></span> Online — GPT-4 Fitness Expert
+          </div>
+        </div>
+        <div style="margin-left:auto;display:flex;gap:.75rem;flex-wrap:wrap;">
+          <button class="btn btn-ghost btn-sm" onclick="addSuggestion('Create a new workout plan for me')">⚡ New Plan</button>
+          <button class="btn btn-ghost btn-sm" onclick="addSuggestion('Analyze my nutrition today')">🥗 Nutrition</button>
+          <button class="btn btn-ghost btn-sm" onclick="addSuggestion('Show my progress summary')">📊 Progress</button>
+        </div>
+      </div>
+
+      <!-- Messages -->
+      <div class="chat-messages" id="chat-messages" style="flex:1;background:var(--dark2);border:1px solid var(--border);border-top:0;border-bottom:0;min-height:0;">
+        <div class="chat-msg ai">
+          <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--neon),var(--neon2));display:flex;align-items:center;justify-content:center;font-size:.9rem;flex-shrink:0;">🧠</div>
+          <div>
+            <div class="chat-bubble">
+              <b>Hey Ahmed!</b> 💪 I'm your AI fitness coach. I've analyzed your data and have some great insights for you today.<br><br>
+              Your push day is going well — 65% complete! I noticed your bench press form was excellent today. Your protein intake is slightly below target, so I'd recommend a protein shake after training.<br><br>
+              How can I help you today?
+            </div>
+            <div style="font-size:.68rem;color:var(--text3);margin-top:.3rem;padding-left:.5rem;">APEX AI · Just now</div>
+          </div>
+        </div>
+
+        <div class="chat-msg user">
+          <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#ff6b35,#ffd93d);display:flex;align-items:center;justify-content:center;font-size:.85rem;flex-shrink:0;">A</div>
+          <div>
+            <div class="chat-bubble">What should I eat after my workout today?</div>
+            <div style="font-size:.68rem;color:var(--text3);margin-top:.3rem;text-align:right;padding-right:.5rem;">You · 2 min ago</div>
+          </div>
+        </div>
+
+        <div class="chat-msg ai">
+          <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--neon),var(--neon2));display:flex;align-items:center;justify-content:center;font-size:.9rem;flex-shrink:0;">🧠</div>
+          <div>
+            <div class="chat-bubble">
+              Great question! 🍽️ For your post-workout meal (within 30-45 min), I recommend:<br><br>
+              <b style="color:var(--neon2);">Option A — Quick:</b> Whey protein shake (30g) + banana + rice cakes<br>
+              <b style="color:var(--neon);">Option B — Full meal:</b> 200g chicken + 150g rice + vegetables<br><br>
+              Based on your macros, you need <b>27g more protein</b> today. Go with Option A for speed, Option B if you have time. 🎯
+            </div>
+            <div style="font-size:.68rem;color:var(--text3);margin-top:.3rem;padding-left:.5rem;">APEX AI · 1 min ago</div>
+          </div>
+        </div>
+
+        <!-- Quick suggestions -->
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap;padding-left:52px;">
+          <button class="btn btn-ghost btn-sm" onclick="addSuggestion('Tell me more about protein timing')">Protein timing ↗</button>
+          <button class="btn btn-ghost btn-sm" onclick="addSuggestion('What supplements do you recommend?')">Supplements ↗</button>
+          <button class="btn btn-ghost btn-sm" onclick="addSuggestion('How long should I rest before next workout?')">Recovery time ↗</button>
+        </div>
+      </div>
+
+      <!-- Input area -->
+      <div class="chat-input-area" style="background:var(--dark2);border:1px solid var(--border);border-top:0;border-radius:0 0 16px 16px;flex-shrink:0;">
+        <textarea class="chat-input" id="chat-input-field" rows="1" placeholder="Ask your AI coach anything..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg();}"></textarea>
+        <button class="btn btn-primary btn-sm" onclick="sendMsg()">Send ↗</button>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     PAGE: PROGRESS
+══════════════════════════════════════════════ -->
+<div class="page" id="page-progress">
+  <div class="dashboard-layout">
+    <aside class="sidebar">
+      <div class="sidebar-user"><div class="avatar">A</div><div><div class="sidebar-user-name">Ahmed Hassan</div></div></div>
+      <div class="sidebar-link" onclick="goTo('dashboard')"><span class="icon">⊞</span> Dashboard</div>
+      <div class="sidebar-link" onclick="goTo('workout')"><span class="icon">⚡</span> Workouts</div>
+      <div class="sidebar-link" onclick="goTo('nutrition')"><span class="icon">🥗</span> Nutrition</div>
+      <div class="sidebar-link" onclick="goTo('chatbot')"><span class="icon">🤖</span> AI Coach</div>
+      <div class="sidebar-link active"><span class="icon">📊</span> Progress</div>
+      <div class="sidebar-link" onclick="goTo('gamification')"><span class="icon">🏆</span> Rewards</div>
+    </aside>
+    <main class="main-content">
+      <div class="section-tag">ANALYTICS & INSIGHTS</div>
+      <h1 style="font-family:var(--font-display);font-size:2rem;font-weight:700;margin-bottom:1.75rem;">Your <em style="font-style:normal;color:var(--neon2);">Progress</em> Analytics</h1>
+
+      <!-- Stats row -->
+      <div class="grid-4" style="margin-bottom:2rem;">
+        <div class="card card-neon" style="text-align:center;padding:1.5rem;">
+          <div style="font-family:var(--font-display);font-size:2rem;font-weight:700;color:var(--neon);">−6.6kg</div>
+          <div style="font-size:.75rem;color:var(--text3);letter-spacing:1.5px;text-transform:uppercase;margin-top:.3rem;">Total Lost</div>
+        </div>
+        <div class="card" style="text-align:center;padding:1.5rem;">
+          <div style="font-family:var(--font-display);font-size:2rem;font-weight:700;color:var(--neon2);">42</div>
+          <div style="font-size:.75rem;color:var(--text3);letter-spacing:1.5px;text-transform:uppercase;margin-top:.3rem;">Workouts Done</div>
+        </div>
+        <div class="card card-neon" style="text-align:center;padding:1.5rem;">
+          <div style="font-family:var(--font-display);font-size:2rem;font-weight:700;color:var(--gold);">−4.2%</div>
+          <div style="font-size:.75rem;color:var(--text3);letter-spacing:1.5px;text-transform:uppercase;margin-top:.3rem;">Body Fat</div>
+        </div>
+        <div class="card" style="text-align:center;padding:1.5rem;">
+          <div style="font-family:var(--font-display);font-size:2rem;font-weight:700;color:var(--neon3);">+22%</div>
+          <div style="font-size:.75rem;color:var(--text3);letter-spacing:1.5px;text-transform:uppercase;margin-top:.3rem;">Strength Gain</div>
+        </div>
+      </div>
+
+      <!-- Charts -->
+      <div class="grid-2" style="gap:1.75rem;margin-bottom:1.75rem;">
+        <!-- Weight Chart (Chart.js) -->
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;">
+            <h3 style="font-family:var(--font-display);font-size:1.1rem;font-weight:700;">Weight Trend</h3>
+            <span class="badge badge-green" id="progress-weight-badge">↓ Tracking</span>
+          </div>
+          <div class="chart-wrapper"><canvas id="progressWeightChart"></canvas></div>
+        </div>
+
+        <!-- Calories Chart (Chart.js) -->
+        <div class="card card-neon">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;">
+            <h3 style="font-family:var(--font-display);font-size:1.1rem;font-weight:700;">Calorie History</h3>
+            <span class="badge badge-blue">30-day view</span>
+          </div>
+          <div class="chart-wrapper"><canvas id="progressCaloriesChart"></canvas></div>
+        </div>
+      </div>
+
+      <!-- Strength + AI Prediction -->
+      <div class="grid-2" style="gap:1.75rem;">
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;">
+            <h3 style="font-family:var(--font-display);font-size:1.1rem;font-weight:700;">Strength Progress</h3>
+            <span class="badge badge-blue">1RM estimates</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:1rem;">
+            <div>
+              <div style="display:flex;justify-content:space-between;font-size:.85rem;margin-bottom:.4rem;"><span>Bench Press</span><span style="color:var(--neon);">80kg <span style="color:var(--text3);font-size:.75rem;">was 65kg</span></span></div>
+              <div class="progress-bar"><div class="progress-fill" style="width:80%"></div></div>
+            </div>
+            <div>
+              <div style="display:flex;justify-content:space-between;font-size:.85rem;margin-bottom:.4rem;"><span>Squat</span><span style="color:var(--neon);">100kg <span style="color:var(--text3);font-size:.75rem;">was 80kg</span></span></div>
+              <div class="progress-bar"><div class="progress-fill" style="width:75%"></div></div>
+            </div>
+            <div>
+              <div style="display:flex;justify-content:space-between;font-size:.85rem;margin-bottom:.4rem;"><span>Deadlift</span><span style="color:var(--neon);">120kg <span style="color:var(--text3);font-size:.75rem;">was 95kg</span></span></div>
+              <div class="progress-bar"><div class="progress-fill" style="width:70%"></div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- AI Prediction -->
+        <div class="card card-neon">
+          <div style="display:flex;gap:.75rem;align-items:center;margin-bottom:1.5rem;">
+            <div style="width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,var(--neon),var(--neon2));display:flex;align-items:center;justify-content:center;font-size:.9rem;">🔮</div>
+            <h3 style="font-family:var(--font-display);font-size:1.1rem;font-weight:700;">AI Future Predictions</h3>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:.85rem;">
+            <div style="padding:.85rem;background:rgba(0,255,136,.05);border:1px solid rgba(0,255,136,.12);border-radius:12px;">
+              <div style="font-size:.75rem;color:var(--text3);font-family:var(--font-mono);margin-bottom:.3rem;">IN 4 WEEKS</div>
+              <div style="font-size:.9rem;">Weight: <b style="color:var(--neon);">75.8kg</b> · Body fat: <b style="color:var(--neon);">12.8%</b></div>
+            </div>
+            <div style="padding:.85rem;background:rgba(0,212,255,.05);border:1px solid rgba(0,212,255,.12);border-radius:12px;">
+              <div style="font-size:.75rem;color:var(--text3);font-family:var(--font-mono);margin-bottom:.3rem;">IN 8 WEEKS</div>
+              <div style="font-size:.9rem;">Weight: <b style="color:var(--neon2);">73.2kg</b> · Body fat: <b style="color:var(--neon2);">11.2%</b></div>
+            </div>
+            <div style="padding:.85rem;background:rgba(123,92,255,.05);border:1px solid rgba(123,92,255,.12);border-radius:12px;">
+              <div style="font-size:.75rem;color:var(--text3);font-family:var(--font-mono);margin-bottom:.3rem;">GOAL ESTIMATE</div>
+              <div style="font-size:.9rem;">Reach <b style="color:var(--neon3);">target 70kg</b> in approx. <b style="color:var(--neon3);">12 weeks</b> 🎯</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     PAGE: GAMIFICATION
+══════════════════════════════════════════════ -->
+<div class="page" id="page-gamification">
+  <div class="dashboard-layout">
+    <aside class="sidebar">
+      <div class="sidebar-user"><div class="avatar">A</div><div><div class="sidebar-user-name">Ahmed Hassan</div></div></div>
+      <div class="sidebar-link" onclick="goTo('dashboard')"><span class="icon">⊞</span> Dashboard</div>
+      <div class="sidebar-link" onclick="goTo('workout')"><span class="icon">⚡</span> Workouts</div>
+      <div class="sidebar-link" onclick="goTo('nutrition')"><span class="icon">🥗</span> Nutrition</div>
+      <div class="sidebar-link" onclick="goTo('chatbot')"><span class="icon">🤖</span> AI Coach</div>
+      <div class="sidebar-link" onclick="goTo('progress')"><span class="icon">📊</span> Progress</div>
+      <div class="sidebar-link active"><span class="icon">🏆</span> Rewards</div>
+    </aside>
+    <main class="main-content">
+      <div class="section-tag">GAMIFICATION</div>
+      <h1 style="font-family:var(--font-display);font-size:2rem;font-weight:700;margin-bottom:1.75rem;">Your <em style="font-style:normal;color:var(--gold);">Achievements</em> & Rewards</h1>
+
+      <!-- Level + Streak + Points -->
+      <div class="grid-3" style="margin-bottom:2rem;">
+        <!-- Level Card -->
+        <div class="card" style="padding:1.75rem;text-align:center;position:relative;overflow:hidden;">
+          <div style="position:absolute;top:-20px;right:-20px;font-size:6rem;opacity:.05;">⭐</div>
+          <div style="font-size:2.5rem;margin-bottom:.5rem;">🔥</div>
+          <div style="font-family:var(--font-display);font-size:.8rem;letter-spacing:3px;text-transform:uppercase;color:var(--text3);margin-bottom:.25rem;">CURRENT LEVEL</div>
+          <div style="font-family:var(--font-display);font-size:2.5rem;font-weight:700;color:var(--gold);">ELITE</div>
+          <div style="font-size:.8rem;color:var(--text2);margin:.5rem 0 1rem;">Level 7 · Iron Warrior</div>
+          <div style="margin-bottom:.3rem;display:flex;justify-content:space-between;font-size:.75rem;color:var(--text2);">
+            <span>XP Progress</span><span style="color:var(--gold);">2,450 / 3,000</span>
+          </div>
+          <div class="progress-bar"><div class="progress-fill orange" style="width:82%"></div></div>
+        </div>
+
+        <!-- Streak -->
+        <div class="card card-neon" style="padding:1.75rem;text-align:center;">
+          <div class="streak-fire" style="margin-bottom:.5rem;">🔥</div>
+          <div style="font-family:var(--font-display);font-size:.8rem;letter-spacing:3px;text-transform:uppercase;color:var(--text3);margin-bottom:.25rem;">CURRENT STREAK</div>
+          <div style="font-family:var(--font-display);font-size:3.5rem;font-weight:700;background:linear-gradient(135deg,var(--warn),var(--gold));-webkit-background-clip:text;-webkit-text-fill-color:transparent;">14</div>
+          <div style="font-size:.85rem;color:var(--text2);">Days Consecutive 🏃</div>
+          <div style="margin-top:1rem;padding:.5rem;background:rgba(255,107,53,.06);border:1px solid rgba(255,107,53,.15);border-radius:10px;font-size:.8rem;color:var(--warn);">
+            Best streak: <b>21 days</b>
+          </div>
+        </div>
+
+        <!-- Points -->
+        <div class="card" style="padding:1.75rem;text-align:center;">
+          <div style="font-size:2.5rem;margin-bottom:.5rem;">⚡</div>
+          <div style="font-family:var(--font-display);font-size:.8rem;letter-spacing:3px;text-transform:uppercase;color:var(--text3);margin-bottom:.25rem;">APEX POINTS</div>
+          <div style="font-family:var(--font-display);font-size:2.8rem;font-weight:700;color:var(--neon2);">12,450</div>
+          <div style="font-size:.8rem;color:var(--text2);">+340 this week</div>
+          <div style="margin-top:1rem;display:flex;justify-content:center;gap:.5rem;flex-wrap:wrap;">
+            <span class="badge badge-blue">Top 15%</span>
+            <span class="badge badge-green">Active</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Badges -->
+      <div class="card" style="margin-bottom:1.75rem;">
+        <h3 style="font-family:var(--font-display);font-size:1.2rem;font-weight:700;margin-bottom:1.5rem;">🏅 Achievement Badges</h3>
+        <div class="grid-4" style="gap:1rem;">
+          <div class="achievement">
+            <div class="achievement-icon gold">🏆</div>
+            <div>
+              <div style="font-weight:700;font-size:.9rem;color:var(--gold);">First Champion</div>
+              <div style="font-size:.75rem;color:var(--text2);">Completed first workout</div>
+              <div class="badge badge-gold" style="margin-top:.3rem;font-size:.58rem;">Unlocked</div>
+            </div>
+          </div>
+          <div class="achievement">
+            <div class="achievement-icon green">🔥</div>
+            <div>
+              <div style="font-weight:700;font-size:.9rem;color:var(--neon);">Streak Master</div>
+              <div style="font-size:.75rem;color:var(--text2);">14-day workout streak</div>
+              <div class="badge badge-green" style="margin-top:.3rem;font-size:.58rem;">Unlocked</div>
+            </div>
+          </div>
+          <div class="achievement">
+            <div class="achievement-icon blue">💪</div>
+            <div>
+              <div style="font-weight:700;font-size:.9rem;color:var(--neon2);">Iron Lifter</div>
+              <div style="font-size:.75rem;color:var(--text2);">Lifted 5,000kg total</div>
+              <div class="badge badge-blue" style="margin-top:.3rem;font-size:.58rem;">Unlocked</div>
+            </div>
+          </div>
+          <div class="achievement">
+            <div class="achievement-icon gold">⚖️</div>
+            <div>
+              <div style="font-weight:700;font-size:.9rem;color:var(--gold);">Scale Crusher</div>
+              <div style="font-size:.75rem;color:var(--text2);">Lost 5kg total</div>
+              <div class="badge badge-gold" style="margin-top:.3rem;font-size:.58rem;">Unlocked</div>
+            </div>
+          </div>
+          <div class="achievement">
+            <div class="achievement-icon purple">🧠</div>
+            <div>
+              <div style="font-weight:700;font-size:.9rem;color:var(--neon3);">AI Addict</div>
+              <div style="font-size:.75rem;color:var(--text2);">100 AI chat sessions</div>
+              <div class="badge badge-purple" style="margin-top:.3rem;font-size:.58rem;">Unlocked</div>
+            </div>
+          </div>
+          <div class="achievement">
+            <div class="achievement-icon green">🥗</div>
+            <div>
+              <div style="font-weight:700;font-size:.9rem;color:var(--neon);">Nutrition Pro</div>
+              <div style="font-size:.75rem;color:var(--text2);">Hit macros 7 days straight</div>
+              <div class="badge badge-green" style="margin-top:.3rem;font-size:.58rem;">Unlocked</div>
+            </div>
+          </div>
+          <div class="achievement" style="opacity:.5;">
+            <div class="achievement-icon gray">🏃</div>
+            <div>
+              <div style="font-weight:700;font-size:.9rem;color:var(--text2);">Marathon Mind</div>
+              <div style="font-size:.75rem;color:var(--text3);">30-day streak</div>
+              <div style="font-size:.7rem;color:var(--text3);margin-top:.3rem;">16/30 days</div>
+            </div>
+          </div>
+          <div class="achievement" style="opacity:.5;">
+            <div class="achievement-icon gray">💯</div>
+            <div>
+              <div style="font-weight:700;font-size:.9rem;color:var(--text2);">Century Club</div>
+              <div style="font-size:.75rem;color:var(--text3);">100 workouts completed</div>
+              <div style="font-size:.7rem;color:var(--text3);margin-top:.3rem;">42/100 workouts</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Level Progression -->
+      <div class="card card-neon">
+        <h3 style="font-family:var(--font-display);font-size:1.2rem;font-weight:700;margin-bottom:1.5rem;">🎮 Level Progression</h3>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
+          <div style="text-align:center;opacity:.6;">
+            <div style="width:48px;height:48px;border-radius:12px;background:var(--glass);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:1.3rem;margin:0 auto .4rem;">🌱</div>
+            <div style="font-size:.7rem;color:var(--text3);">Rookie</div>
+            <div style="font-size:.65rem;color:var(--text3);">Lv.1</div>
+          </div>
+          <div style="flex:1;height:3px;background:linear-gradient(90deg,var(--neon),var(--neon2));border-radius:2px;min-width:20px;"></div>
+          <div style="text-align:center;opacity:.6;">
+            <div style="width:48px;height:48px;border-radius:12px;background:var(--glass);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:1.3rem;margin:0 auto .4rem;">⚡</div>
+            <div style="font-size:.7rem;color:var(--text3);">Warrior</div>
+            <div style="font-size:.65rem;color:var(--text3);">Lv.3</div>
+          </div>
+          <div style="flex:1;height:3px;background:linear-gradient(90deg,var(--neon),var(--neon2));border-radius:2px;min-width:20px;"></div>
+          <div style="text-align:center;opacity:.6;">
+            <div style="width:48px;height:48px;border-radius:12px;background:var(--glass);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:1.3rem;margin:0 auto .4rem;">🏆</div>
+            <div style="font-size:.7rem;color:var(--text3);">Champion</div>
+            <div style="font-size:.65rem;color:var(--text3);">Lv.5</div>
+          </div>
+          <div style="flex:1;height:3px;background:linear-gradient(90deg,var(--neon),var(--neon2));border-radius:2px;min-width:20px;"></div>
+          <div style="text-align:center;">
+            <div style="width:56px;height:56px;border-radius:14px;background:linear-gradient(135deg,var(--gold),var(--warn));display:flex;align-items:center;justify-content:center;font-size:1.5rem;margin:0 auto .4rem;box-shadow:0 0 20px rgba(255,217,61,.4);">🔥</div>
+            <div style="font-size:.75rem;color:var(--gold);font-weight:700;">ELITE</div>
+            <div style="font-size:.65rem;color:var(--gold);">Lv.7 ← You</div>
+          </div>
+          <div style="flex:1;height:3px;background:rgba(255,255,255,.1);border-radius:2px;min-width:20px;"></div>
+          <div style="text-align:center;opacity:.4;">
+            <div style="width:48px;height:48px;border-radius:12px;background:var(--glass);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:1.3rem;margin:0 auto .4rem;">🌟</div>
+            <div style="font-size:.7rem;color:var(--text3);">Legend</div>
+            <div style="font-size:.65rem;color:var(--text3);">Lv.10</div>
+          </div>
+          <div style="flex:1;height:3px;background:rgba(255,255,255,.05);border-radius:2px;min-width:20px;"></div>
+          <div style="text-align:center;opacity:.3;">
+            <div style="width:48px;height:48px;border-radius:12px;background:var(--glass);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:1.3rem;margin:0 auto .4rem;">💎</div>
+            <div style="font-size:.7rem;color:var(--text3);">Apex</div>
+            <div style="font-size:.65rem;color:var(--text3);">Max</div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     JAVASCRIPT
+══════════════════════════════════════════════ -->
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+// ── ROUTING ──────────────────────────────────
+const pages = ['landing','signin','signup','dashboard','workout','nutrition','chatbot','progress','gamification'];
+
+function goTo(page) {
+  pages.forEach(p => {
+    const el = document.getElementById('page-' + p);
+    if (el) el.classList.toggle('active', p === page);
+  });
+  window.scrollTo(0, 0);
+  if (page === 'dashboard') {
+    updateDashboard();
+  fetchMLPredictions(); // Load real ML predictions from backend
+    setTimeout(initCharts, 150);
+  }
+  if (page === 'progress') {
+    setTimeout(initProgressCharts, 150);
+  }
+}
+
+function completeSignup() {
+  // Grab values from signup form if filled
+  const nameEl = document.querySelector('#signup-step1 input[type="text"]');
+  const genderSelected = document.querySelector('#gender-m.selected') ? 'm' : document.querySelector('#gender-f.selected') ? 'f' : 'm';
+  const weightEl = document.querySelector('#signup-step2 input[placeholder="75"]');
+  const heightEl = document.querySelector('#signup-step2 input[placeholder="175"]');
+  const ageEl = document.querySelector('#signup-step2 input[placeholder="25"]');
+
+  if(nameEl?.value) userProfile.name = nameEl.value;
+  if(weightEl?.value) userProfile.weight = parseFloat(weightEl.value);
+  if(heightEl?.value) userProfile.height = parseFloat(heightEl.value);
+  if(ageEl?.value) userProfile.age = parseInt(ageEl.value);
+  userProfile.gender = genderSelected;
+
+  const goalEl = document.querySelector('#goal-lose.selected') ? 'lose' :
+                 document.querySelector('#goal-build.selected') ? 'build' :
+                 document.querySelector('#goal-fit.selected') ? 'lose' : 'maintain';
+  userProfile.goal = goalEl;
+
+  localStorage.setItem('apex-profile', JSON.stringify(userProfile));
+  applyTheme(genderSelected);
+  goTo('dashboard');
+}
+
+// ══════════════════════════════════════════════════════════
+//  APEX AI AUTH SYSTEM — signup + signin with backend memory
+// ══════════════════════════════════════════════════════════
+
+function showAuthError(msg) {
+  let box = document.getElementById('auth-error');
+  if (!box) {
+    box = document.createElement('div');
+    box.id = 'auth-error';
+    box.style.cssText = 'background:rgba(255,107,53,.15);border:1px solid var(--warn);border-radius:10px;padding:.85rem 1.1rem;font-size:.85rem;color:var(--warn);margin-bottom:.5rem;';
+  }
+  box.textContent = msg;
+  // Insert into both signin and signup cards
+  const cards = document.querySelectorAll('.page.active .card');
+  if (cards.length > 0) {
+    const firstCard = cards[0];
+    const firstChild = firstCard.firstElementChild;
+    if (!firstChild.querySelector('#auth-error')) firstChild.prepend(box.cloneNode(true));
+  }
+}
+
+function clearAuthErrors() {
+  document.querySelectorAll('#auth-error').forEach(e => e.remove());
+}
+
+// ── SIGN IN ──────────────────────────────────────────────
+async function handleSignIn() {
+  clearAuthErrors();
+  const email    = document.getElementById('signin-email')?.value?.trim();
+  const password = document.getElementById('signin-password')?.value;
+
+  if (!email || !password) {
+    showAuthMsg('signin', '⚠️  Please enter your email and password.', 'error');
+    return;
+  }
+
+  const btn = document.querySelector('#page-signin .btn-primary');
+  if (btn) { btn.textContent = 'Signing in...'; btn.disabled = true; }
+
+  try {
+    const res = await fetch(`${APEX_API}/auth/signin`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ email, password })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      showAuthMsg('signin', `❌ ${data.detail || 'Incorrect email or password'}`, 'error');
+      if (btn) { btn.textContent = 'Sign In →'; btn.disabled = false; }
+      return;
+    }
+
+    // ✅ Success — restore user profile from backend
+    if (data.profile && Object.keys(data.profile).length > 0) {
+      const p = data.profile;
+      userProfile.name         = p.name || data.name;
+      userProfile.age          = p.age  || userProfile.age;
+      userProfile.weight       = p.weight_kg || userProfile.weight;
+      userProfile.height       = p.height_cm || userProfile.height;
+      userProfile.activity     = p.activity_level || userProfile.activity;
+      userProfile.goal         = p.goal || userProfile.goal;
+      userProfile.targetWeight = p.target_weight || userProfile.targetWeight;
+      userProfile.gender       = p.gender === 'f' || p.gender === 0 || p.gender === '0' ? 'f' : 'm';
+    } else {
+      userProfile.name = data.name || 'User';
+      userProfile.gender = data.gender || 'm';
+    }
+
+    // Save to localStorage so it persists
+    localStorage.setItem('apex-profile', JSON.stringify(userProfile));
+    localStorage.setItem('apex-user-id', data.user_id);
+    localStorage.setItem('apex-email', email);
+
+    applyTheme(userProfile.gender);
+    showAuthMsg('signin', `✅ ${data.message}`, 'success');
+
+    setTimeout(() => {
+      goTo('dashboard');
+      if (btn) { btn.textContent = 'Sign In →'; btn.disabled = false; }
+    }, 800);
+
+  } catch(e) {
+    // Backend not running — allow demo login
+    console.warn('Backend not reachable, using demo mode');
+    showAuthMsg('signin', '🔌 Backend offline — entering demo mode', 'warn');
+    setTimeout(() => { goTo('dashboard'); if (btn) { btn.textContent = 'Sign In →'; btn.disabled = false; } }, 1000);
+  }
+}
+
+// ── SIGN UP ──────────────────────────────────────────────
+async function handleSignUp() {
+  clearAuthErrors();
+
+  const name    = document.getElementById('su-name')?.value?.trim();
+  const email   = document.getElementById('su-email')?.value?.trim();
+  const pass    = document.getElementById('su-password')?.value;
+  const confirm = document.getElementById('su-confirm')?.value;
+  const age     = parseInt(document.getElementById('su-age')?.value) || 25;
+  const height  = parseFloat(document.getElementById('su-height')?.value) || 175;
+  const weight  = parseFloat(document.getElementById('su-weight')?.value) || 70;
+  const target  = parseFloat(document.getElementById('su-target')?.value) || weight - 5;
+  const gender  = document.querySelector('#gender-m.selected') ? 'm' :
+                  document.querySelector('#gender-f.selected') ? 'f' : 'm';
+  const goal    = document.querySelector('#goal-lose.selected') ? 'lose' :
+                  document.querySelector('#goal-build.selected') ? 'build' :
+                  document.querySelector('#goal-fit.selected') ? 'lose' : 'maintain';
+  const actEl   = document.getElementById('su-activity');
+  const actMap  = {'':2,'Sedentary — Office work, little exercise':1,'Lightly Active — 1-3 workouts/week':2,'Moderately Active — 3-5 workouts/week':3,'Very Active — 6-7 workouts/week':4,'Extremely Active — Athlete / Physical job':5};
+  const activity= actEl ? (actMap[actEl.value] || 2) : 2;
+  const diet    = document.getElementById('su-diet')?.value || 'No Restrictions';
+  const timeframe = document.getElementById('su-timeframe')?.value || '3-6 months';
+
+  // Validation
+  if (!name) { showAuthMsg('signup', '⚠️  Please enter your full name.', 'error'); showStep(1); return; }
+  if (!email || !email.includes('@')) { showAuthMsg('signup', '⚠️  Please enter a valid email.', 'error'); showStep(1); return; }
+  if (!pass || pass.length < 6) { showAuthMsg('signup', '⚠️  Password must be at least 6 characters.', 'error'); showStep(1); return; }
+  if (pass !== confirm) { showAuthMsg('signup', '⚠️  Passwords do not match.', 'error'); showStep(1); return; }
+  if (!age || !height || !weight) { showAuthMsg('signup', '⚠️  Please fill in your body stats.', 'error'); showStep(2); return; }
+
+  const btn = document.querySelector('#page-signup .btn-primary:last-child');
+  if (btn) { btn.textContent = 'Creating account...'; btn.disabled = true; }
+
+  try {
+    const res = await fetch(`${APEX_API}/auth/signup`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        full_name: name, email, password: pass,
+        gender, age, weight_kg: weight, height_cm: height,
+        activity_level: activity, goal, target_weight: target,
+        dietary_pref: diet, timeframe
+      })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      showAuthMsg('signup', `❌ ${data.detail || 'Signup failed'}`, 'error');
+      if (btn) { btn.textContent = '🚀 Launch APEX AI'; btn.disabled = false; }
+      return;
+    }
+
+    // ✅ Success
+    userProfile.name         = name;
+    userProfile.age          = age;
+    userProfile.weight       = weight;
+    userProfile.height       = height;
+    userProfile.activity     = activity;
+    userProfile.goal         = goal;
+    userProfile.targetWeight = target;
+    userProfile.gender       = gender;
+
+    localStorage.setItem('apex-profile', JSON.stringify(userProfile));
+    localStorage.setItem('apex-user-id', data.user_id);
+    localStorage.setItem('apex-email', email);
+
+    applyTheme(gender);
+    showAuthMsg('signup', `✅ ${data.message}`, 'success');
+    setTimeout(() => {
+      goTo('dashboard');
+      if (btn) { btn.textContent = '🚀 Launch APEX AI'; btn.disabled = false; }
+    }, 1000);
+
+  } catch(e) {
+    // Backend offline — still work in demo mode
+    userProfile.name=name; userProfile.age=age; userProfile.weight=weight;
+    userProfile.height=height; userProfile.goal=goal; userProfile.gender=gender;
+    localStorage.setItem('apex-profile', JSON.stringify(userProfile));
+    applyTheme(gender);
+    showAuthMsg('signup', '🔌 Backend offline — saved locally only', 'warn');
+    setTimeout(() => { goTo('dashboard'); if (btn) { btn.textContent = '🚀 Launch APEX AI'; btn.disabled = false; } }, 1000);
+  }
+}
+
+// ── Styled auth message helper ────────────────────────────
+function showAuthMsg(page, msg, type) {
+  const colors = { error:'var(--warn)', success:'var(--neon)', warn:'var(--gold)' };
+  const bgs    = { error:'rgba(255,107,53,.12)', success:'rgba(0,255,136,.1)', warn:'rgba(255,217,61,.1)' };
+  let box = document.getElementById(`auth-msg-${page}`);
+  if (!box) {
+    box = document.createElement('div');
+    box.id = `auth-msg-${page}`;
+    box.style.cssText = `border-radius:10px;padding:.8rem 1.1rem;font-size:.85rem;margin-bottom:.75rem;transition:all .3s;`;
+    const card = document.querySelector(`#page-${page} .card`);
+    if (card && card.firstElementChild) card.firstElementChild.prepend(box);
+  }
+  box.style.background = bgs[type] || bgs.error;
+  box.style.border     = `1px solid ${colors[type] || colors.error}`;
+  box.style.color      = colors[type] || colors.error;
+  box.textContent      = msg;
+}
+
+// ── SIGN UP STEPS ─────────────────────────────
+function showStep(n) {
+  [1,2,3].forEach(i => {
+    document.getElementById('signup-step' + i).style.display = i === n ? 'block' : 'none';
+    const tab = document.getElementById('step' + i + '-tab');
+    if (i === n) {
+      tab.style.background = 'linear-gradient(135deg,var(--neon),var(--neon2))';
+      tab.style.color = 'var(--dark)';
+    } else {
+      tab.style.background = 'transparent';
+      tab.style.color = 'var(--text3)';
+    }
+  });
+}
+
+function selectRadio(group, val) {
+  document.querySelectorAll('[id^="' + group + '-"]').forEach(el => el.classList.remove('selected'));
+  const el = document.getElementById(group + '-' + val);
+  if (el) el.classList.add('selected');
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  APEX AI — Computer Vision Engine v2.0
+//  Uses MediaPipe Pose (BlazePose) loaded from CDN.
+//  Architecture: State Machine + Temporal Smoothing + Per-exercise
+//  angle thresholds → rep counting, form scoring, live feedback.
+// ══════════════════════════════════════════════════════════════════
+const CV = (() => {
+
+  // ── MediaPipe landmark indices ─────────────────────────────────
+  const LM = {
+    NOSE:0, L_SHOULDER:11, R_SHOULDER:12,
+    L_ELBOW:13, R_ELBOW:14, L_WRIST:15, R_WRIST:16,
+    L_HIP:23, R_HIP:24, L_KNEE:25, R_KNEE:26,
+    L_ANKLE:27, R_ANKLE:28
+  };
+
+  // ── Exercise configs (thresholds in degrees) ───────────────────
+  // Hysteresis design: ENTER_DOWN threshold is generous (catches the squat bottom),
+  // EXIT_UP threshold is strict enough to require full extension.
+  // repState starts 'up'. Flow: up→(angle drops below enterDown)→down→(angle rises above exitUp)→up+1rep
+  const EXERCISES = {
+    squat: {
+      label: 'SQUAT',
+      enterDown: 110,  // knee angle ≤ 110° = "you are at the bottom"
+      exitUp:    155,  // knee angle ≥ 155° = "you are back to standing"
+      checkLandmarks: [LM.L_HIP, LM.L_KNEE, LM.L_ANKLE, LM.R_HIP, LM.R_KNEE, LM.R_ANKLE],
+      getAngle: (lm) => avg(
+        angle3(lm[LM.L_HIP], lm[LM.L_KNEE], lm[LM.L_ANKLE]),
+        angle3(lm[LM.R_HIP], lm[LM.R_KNEE], lm[LM.R_ANKLE])
+      ),
+      formChecks: checkSquatForm,
+    },
+    pushup: {
+      label: 'PUSH-UP',
+      enterDown: 90,   // elbow angle ≤ 90° = chest near floor
+      exitUp:    145,  // elbow angle ≥ 145° = arms extended
+      checkLandmarks: [LM.L_SHOULDER, LM.L_ELBOW, LM.L_WRIST, LM.R_SHOULDER, LM.R_ELBOW, LM.R_WRIST],
+      getAngle: (lm) => avg(
+        angle3(lm[LM.L_SHOULDER], lm[LM.L_ELBOW], lm[LM.L_WRIST]),
+        angle3(lm[LM.R_SHOULDER], lm[LM.R_ELBOW], lm[LM.R_WRIST])
+      ),
+      formChecks: checkPushupForm,
+    },
+    plank: {
+      label: 'PLANK',
+      enterDown: 0,
+      exitUp:    0,
+      checkLandmarks: [LM.L_SHOULDER, LM.L_HIP, LM.L_ANKLE, LM.R_SHOULDER, LM.R_HIP, LM.R_ANKLE],
+      getAngle: (lm) => avg(
+        angle3(lm[LM.L_SHOULDER], lm[LM.L_HIP], lm[LM.L_ANKLE]),
+        angle3(lm[LM.R_SHOULDER], lm[LM.R_HIP], lm[LM.R_ANKLE])
+      ),
+      formChecks: checkPlankForm,
+    }
+  };
+
+  // ── State ──────────────────────────────────────────────────────
+  let pose = null, camStream = null, rafId = null;
+  let isOn = false, modelReady = false, modelLoading = false;
+  let currentExercise = 'squat';
+  let repState = 'up';          // 'up' | 'down' — state machine
+  let repCount = 0, setCount = 0;
+  let angleHistory = [];        // temporal smoothing buffer (N frames)
+  const SMOOTH_N = 5;
+  let repScores = [];           // score per rep
+  let frameCount = 0, fpsTime = Date.now(), fps = 0;
+  let lastFeedback = { score: 0, items: [] };
+  let plankStartTime = null;    // for plank hold timer
+  let canvasCtx = null;
+
+  // ── Geometry helpers ──────────────────────────────────────────
+  function angle3(A, B, C) {
+    // Returns angle at vertex B formed by A-B-C (in degrees)
+    if (!A || !B || !C) return 0;
+    const ab = [A.x - B.x, A.y - B.y];
+    const cb = [C.x - B.x, C.y - B.y];
+    const dot = ab[0]*cb[0] + ab[1]*cb[1];
+    const magAB = Math.hypot(...ab);
+    const magCB = Math.hypot(...cb);
+    if (!magAB || !magCB) return 0;
+    const cos = Math.min(1, Math.max(-1, dot / (magAB * magCB)));
+    return Math.acos(cos) * (180 / Math.PI);
+  }
+
+  function avg(...vals) {
+    return vals.reduce((a,b) => a+b, 0) / vals.length;
+  }
+
+  function landmarksVisible(lm, indices, threshold = 0.55) {
+    return indices.every(i => lm[i] && lm[i].visibility > threshold);
+  }
+
+  // ── Form check functions ───────────────────────────────────────
+  function checkSquatForm(lm) {
+    const issues = [];
+    let score = 100;
+
+    // Knee cave check: knee x vs ankle x
+    const lKneeX = lm[LM.L_KNEE].x, lAnkleX = lm[LM.L_ANKLE].x;
+    const rKneeX = lm[LM.R_KNEE].x, rAnkleX = lm[LM.R_ANKLE].x;
+    const kneeCave = Math.abs(lKneeX - lAnkleX) < 0.02 || Math.abs(rKneeX - rAnkleX) < 0.02;
+    if (kneeCave) { issues.push({icon:'⚠', title:'Knee Cave', msg:'Push your knees out — align with toes.', color:'var(--gold)'}); score -= 25; }
+
+    // Back lean: torso angle relative to vertical
+    const hipY  = avg(lm[LM.L_HIP].y, lm[LM.R_HIP].y);
+    const shoulderY = avg(lm[LM.L_SHOULDER].y, lm[LM.R_SHOULDER].y);
+    const hipX  = avg(lm[LM.L_HIP].x, lm[LM.R_HIP].x);
+    const shoulderX = avg(lm[LM.L_SHOULDER].x, lm[LM.R_SHOULDER].x);
+    const torsoLean = Math.abs(Math.atan2(shoulderX - hipX, hipY - shoulderY) * 180/Math.PI);
+    if (torsoLean > 35) { issues.push({icon:'⚠', title:'Excessive Forward Lean', msg:'Keep chest up and core tight.', color:'var(--warn)'}); score -= 20; }
+
+    if (issues.length === 0) issues.push({icon:'✓', title:'Squat Form OK', msg:'Great depth and alignment!', color:'var(--neon)'});
+    return { score: Math.max(0, score), issues };
+  }
+
+  function checkPushupForm(lm) {
+    const issues = [];
+    let score = 100;
+
+    // Hip sag: hip should be in line with shoulder-ankle
+    const hipY      = avg(lm[LM.L_HIP].y, lm[LM.R_HIP].y);
+    const shoulderY = avg(lm[LM.L_SHOULDER].y, lm[LM.R_SHOULDER].y);
+    const ankleY    = avg(lm[LM.L_ANKLE].y, lm[LM.R_ANKLE].y);
+    const expectedHip = (shoulderY + ankleY) / 2;
+    if (hipY > expectedHip + 0.05) { issues.push({icon:'⚠', title:'Hip Sag', msg:'Engage core — keep body in straight line.', color:'var(--warn)'}); score -= 25; }
+    if (hipY < expectedHip - 0.08) { issues.push({icon:'⚠', title:'Hips Too High', msg:'Lower hips to form a straight line.', color:'var(--gold)'}); score -= 15; }
+
+    // Elbow flare
+    const elbowX = avg(lm[LM.L_ELBOW].x, lm[LM.R_ELBOW].x);
+    const shoulderX = avg(lm[LM.L_SHOULDER].x, lm[LM.R_SHOULDER].x);
+    if (Math.abs(elbowX - shoulderX) > 0.12) { issues.push({icon:'ℹ', title:'Elbow Flare', msg:'Tuck elbows ~45° to protect shoulders.', color:'var(--neon2)'}); score -= 15; }
+
+    if (issues.length === 0) issues.push({icon:'✓', title:'Push-up Form OK', msg:'Solid body line and elbow position!', color:'var(--neon)'});
+    return { score: Math.max(0, score), issues };
+  }
+
+  function checkPlankForm(lm) {
+    const issues = [];
+    let score = 100;
+
+    const bodyAngle = avg(
+      angle3(lm[LM.L_SHOULDER], lm[LM.L_HIP], lm[LM.L_ANKLE]),
+      angle3(lm[LM.R_SHOULDER], lm[LM.R_HIP], lm[LM.R_ANKLE])
+    );
+
+    if (bodyAngle < 155) { issues.push({icon:'⚠', title:'Hip Sag', msg:'Squeeze glutes and raise hips to form a straight line.', color:'var(--warn)'}); score -= 30; }
+    if (bodyAngle > 175) { issues.push({icon:'ℹ', title:'Hips Too High', msg:'Slightly lower hips for optimal activation.', color:'var(--neon2)'}); score -= 10; }
+
+    const elapsed = plankStartTime ? Math.floor((Date.now() - plankStartTime) / 1000) : 0;
+    if (issues.length === 0) issues.push({icon:'✓', title:`Plank Hold: ${elapsed}s`, msg:'Perfect alignment — keep breathing!', color:'var(--neon)'});
+    return { score: Math.max(0, score), issues };
+  }
+
+  // ── Rep counting — State Machine ──────────────────────────────
+  // State: 'up' → angle drops below enterDown → 'down'
+  //        'down' → angle rises above exitUp   → 'up' + repCount++
+  // This two-threshold (hysteresis) design prevents counting
+  // partial reps or noise oscillations at a single threshold.
+  function processRep(smoothed) {
+    if (currentExercise === 'plank') {
+      if (!plankStartTime) plankStartTime = Date.now();
+      return;
+    }
+    plankStartTime = null;
+
+    const ex = EXERCISES[currentExercise];
+
+    if (repState === 'up' && smoothed <= ex.enterDown) {
+      repState = 'down';
+    } else if (repState === 'down' && smoothed >= ex.exitUp) {
+      repState = 'up';
+      repCount++;
+      repScores.push(lastFeedback.score);
+      if (repCount % 10 === 0) setCount++;
+      updateStats();
+    }
+  }
+
+  // ── Skeleton drawing on canvas ─────────────────────────────────
+  const CONNECTIONS = [
+    [LM.L_SHOULDER, LM.R_SHOULDER],
+    [LM.L_SHOULDER, LM.L_ELBOW], [LM.L_ELBOW, LM.L_WRIST],
+    [LM.R_SHOULDER, LM.R_ELBOW], [LM.R_ELBOW, LM.R_WRIST],
+    [LM.L_SHOULDER, LM.L_HIP],   [LM.R_SHOULDER, LM.R_HIP],
+    [LM.L_HIP, LM.R_HIP],
+    [LM.L_HIP, LM.L_KNEE], [LM.L_KNEE, LM.L_ANKLE],
+    [LM.R_HIP, LM.R_KNEE], [LM.R_KNEE, LM.R_ANKLE],
+  ];
+
+  function drawSkeleton(lm, w, h) {
+    if (!canvasCtx) return;
+    const ctx = canvasCtx;
+    ctx.clearRect(0, 0, w, h);
+    ctx.lineWidth = 2.5;
+    ctx.strokeStyle = 'rgba(0,212,255,0.7)';
+    ctx.shadowColor = '#00d4ff';
+    ctx.shadowBlur = 6;
+
+    for (const [a, b] of CONNECTIONS) {
+      const pa = lm[a], pb = lm[b];
+      if (!pa || !pb || pa.visibility < 0.4 || pb.visibility < 0.4) continue;
+      ctx.beginPath();
+      ctx.moveTo(pa.x * w, pa.y * h);
+      ctx.lineTo(pb.x * w, pb.y * h);
+      ctx.stroke();
+    }
+
+    // Draw keypoints
+    for (const idx of Object.values(LM)) {
+      const p = lm[idx];
+      if (!p || p.visibility < 0.5) continue;
+      ctx.beginPath();
+      ctx.arc(p.x * w, p.y * h, 4, 0, Math.PI * 2);
+      ctx.fillStyle = lastFeedback.score > 75 ? '#00ff88' : '#ff6b35';
+      ctx.shadowColor = lastFeedback.score > 75 ? '#00ff88' : '#ff6b35';
+      ctx.fill();
+    }
+    ctx.shadowBlur = 0;
+  }
+
+  // ── UI update helpers ──────────────────────────────────────────
+  function updateStats() {
+    document.getElementById('stat-reps').textContent  = repCount;
+    document.getElementById('stat-sets').textContent  = setCount;
+    document.getElementById('hud-reps').textContent   = repCount;
+    const avgScore = repScores.length ? Math.round(repScores.reduce((a,b)=>a+b,0)/repScores.length) : '—';
+    document.getElementById('stat-avg').textContent   = repScores.length ? avgScore : '—';
+  }
+
+  function updateFeedbackUI(formResult, smoothed) {
+    const score = formResult.score;
+    lastFeedback = { score, items: formResult.issues };
+
+    document.getElementById('fb-score').textContent  = score + '/100';
+    document.getElementById('fb-score-bar').style.width = score + '%';
+    document.getElementById('fb-score-bar').style.background =
+      score > 80 ? 'linear-gradient(90deg,var(--neon),var(--neon2))' :
+      score > 55 ? 'linear-gradient(90deg,var(--gold),var(--warn))' :
+                   'linear-gradient(90deg,var(--warn),#ff4757)';
+
+    const stageLabel = currentExercise === 'plank'
+      ? (plankStartTime ? '🟢 HOLDING' : '⏳ GET READY')
+      : (repState === 'down' ? '🔻 DOWN' : '🔺 UP');
+    document.getElementById('hud-stage').textContent = stageLabel;
+    document.getElementById('hud-stage').style.color =
+      repState === 'down' ? 'var(--neon2)' : 'var(--neon)';
+
+    document.getElementById('cv-live-text').textContent =
+      `${EXERCISES[currentExercise].label} · Angle: ${Math.round(smoothed)}° · ${stageLabel}`;
+
+    const conf = Math.round(avg(...Object.values(LM).map(i => (window._lastLM?.[i]?.visibility || 0))) * 100);
+    document.getElementById('cv-confidence').textContent = `Confidence: ${conf}%`;
+
+    // Update feedback item cards
+    const items = formResult.issues.slice(0, 3);
+    [1, 2, 3].forEach((n, i) => {
+      const item = items[i];
+      const el = document.getElementById(`fb-item-${n}`);
+      if (item) {
+        el.style.display = 'block';
+        el.style.background = item.color === 'var(--neon)' ? 'rgba(0,255,136,.05)' :
+                              item.color === 'var(--warn)' ? 'rgba(255,107,53,.05)' :
+                              item.color === 'var(--gold)' ? 'rgba(255,217,61,.05)' : 'rgba(0,212,255,.05)';
+        el.style.borderColor = item.color === 'var(--neon)' ? 'rgba(0,255,136,.2)' :
+                               item.color === 'var(--warn)' ? 'rgba(255,107,53,.2)' :
+                               item.color === 'var(--gold)' ? 'rgba(255,217,61,.2)' : 'rgba(0,212,255,.2)';
+        document.getElementById(`fb-icon-${n}`).textContent  = item.icon;
+        document.getElementById(`fb-icon-${n}`).style.color  = item.color;
+        document.getElementById(`fb-title-${n}`).textContent = item.title;
+        document.getElementById(`fb-title-${n}`).style.color = item.color;
+        document.getElementById(`fb-msg-${n}`).textContent   = item.msg;
+      } else {
+        el.style.display = i === 0 ? 'block' : 'none';
+      }
+    });
+  }
+
+  function updateFPS() {
+    frameCount++;
+    const now = Date.now();
+    if (now - fpsTime >= 1000) {
+      fps = frameCount;
+      frameCount = 0;
+      fpsTime = now;
+      document.getElementById('hud-fps').textContent = `${fps} FPS`;
+    }
+  }
+
+  // ── Main per-frame callback from MediaPipe ─────────────────────
+  function onResults(results) {
+    const video  = document.getElementById('cv-video');
+    const canvas = document.getElementById('cv-canvas');
+    canvas.width  = video.videoWidth  || 640;
+    canvas.height = video.videoHeight || 480;
+
+    if (!results.poseLandmarks) {
+      if (canvasCtx) canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
+      updateFPS();
+      if (isOn) rafId = requestAnimationFrame(frameTick); // keep loop alive
+      return;
+    }
+
+    const lm = results.poseLandmarks;
+    window._lastLM = lm;
+    const ex = EXERCISES[currentExercise];
+
+    // Check landmark visibility
+    if (!landmarksVisible(lm, ex.checkLandmarks)) {
+      document.getElementById('cv-live-text').textContent = '⚠ Move fully into frame';
+      updateFPS();
+      if (isOn) rafId = requestAnimationFrame(frameTick);
+      return;
+    }
+
+    // Compute angle, smooth it
+    const rawAngle    = ex.getAngle(lm);
+    const smoothAngle = smoothAngle_fn(rawAngle);
+
+    // Rep counting state machine
+    processRep(smoothAngle);
+
+    // Form analysis
+    const formResult = ex.formChecks(lm);
+    updateFeedbackUI(formResult, smoothAngle);
+
+    // Draw skeleton
+    drawSkeleton(lm, canvas.width, canvas.height);
+    updateFPS();
+
+    // Schedule next frame HERE — after full processing is complete
+    // This is the correct place: ensures no overlapping pose.send() calls
+    if (isOn) rafId = requestAnimationFrame(frameTick);
+  }
+
+  // Rename to avoid conflict with the smoothAngle variable
+  function smoothAngle_fn(raw) {
+    angleHistory.push(raw);
+    if (angleHistory.length > SMOOTH_N) angleHistory.shift();
+    return avg(...angleHistory);
+  }
+
+  // ── Load MediaPipe Pose ────────────────────────────────────────
+  async function loadModel() {
+    if (modelLoading || modelReady) return;
+    modelLoading = true;
+    document.getElementById('cv-live-text').textContent = '⏳ Loading AI pose model…';
+
+    try {
+      // Dynamically load MediaPipe scripts
+      await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js');
+      await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js');
+
+      pose = new window.Pose({
+        locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${f}`
+      });
+      pose.setOptions({
+        modelComplexity: 1,          // 0=lite, 1=full, 2=heavy — 1 is best speed/accuracy tradeoff
+        smoothLandmarks: true,       // built-in temporal smoothing
+        enableSegmentation: false,   // disable segmentation (saves ~30% CPU)
+        minDetectionConfidence: 0.55,
+        minTrackingConfidence: 0.5
+      });
+      pose.onResults(onResults);
+      await pose.initialize();
+      modelReady = true;
+      modelLoading = false;
+      document.getElementById('cv-live-text').textContent = '✅ Model ready — starting camera…';
+    } catch(e) {
+      modelLoading = false;
+      document.getElementById('cv-live-text').textContent = '❌ Failed to load model. Check your connection.';
+      console.error('MediaPipe load failed:', e);
+    }
+  }
+
+  function loadScript(src) {
+    return new Promise((res, rej) => {
+      if (document.querySelector(`script[src="${src}"]`)) { res(); return; }
+      const s = document.createElement('script');
+      s.src = src; s.onload = res; s.onerror = rej;
+      document.head.appendChild(s);
+    });
+  }
+
+  // ── Frame loop — driven from INSIDE onResults callback ────────
+  // pose.send() is async but fires onResults synchronously per frame.
+  // Scheduling the next RAF *inside* onResults ensures we never queue
+  // a new frame before the previous one has fully processed — fixing
+  // the race condition that caused frames to be dropped silently.
+  function frameTick() {
+    if (!isOn || !modelReady) return;
+    const video = document.getElementById('cv-video');
+    if (video.readyState >= 2) {
+      try {
+        pose.send({ image: video }); // intentionally NOT awaited — onResults handles next tick
+      } catch(e) {
+        console.warn('pose.send error:', e);
+        rafId = requestAnimationFrame(frameTick); // keep loop alive on error
+      }
+    } else {
+      rafId = requestAnimationFrame(frameTick); // video not ready yet, retry
+    }
+  }
+
+  // ── Public API ─────────────────────────────────────────────────
+  async function toggle() {
+    isOn ? stopCamera() : await startCamera();
+  }
+
+  async function startCamera() {
+    const video  = document.getElementById('cv-video');
+    const box    = document.getElementById('camera-box');
+    const idle   = document.getElementById('cv-idle');
+    const hud    = document.getElementById('cv-hud');
+    const tips   = document.getElementById('camera-tips');
+    const badge  = document.getElementById('cv-status-badge');
+    const canvas = document.getElementById('cv-canvas');
+    canvasCtx = canvas.getContext('2d');
+
+    try {
+      camStream = await navigator.mediaDevices.getUserMedia({
+        video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
+        audio: false
+      });
+      video.srcObject = camStream;
+      video.style.display = 'block';
+      idle.style.display  = 'none';
+      hud.style.display   = 'block';
+      tips.style.display  = 'block';
+      box.style.borderColor = 'var(--neon)';
+      box.style.boxShadow   = '0 0 40px rgba(0,255,136,.2)';
+      badge.textContent     = '🔴 LIVE';
+      badge.className       = 'badge badge-green';
+      isOn = true;
+
+      await loadModel();
+      if (modelReady) {
+        rafId = requestAnimationFrame(frameTick);
+      }
+    } catch(e) {
+      document.getElementById('cv-live-text').textContent = '❌ Camera permission denied.';
+    }
+  }
+
+  function stopCamera() {
+    const video = document.getElementById('cv-video');
+    const box   = document.getElementById('camera-box');
+    const idle  = document.getElementById('cv-idle');
+    const hud   = document.getElementById('cv-hud');
+    const tips  = document.getElementById('camera-tips');
+    const badge = document.getElementById('cv-status-badge');
+
+    if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+    if (camStream) { camStream.getTracks().forEach(t => t.stop()); camStream = null; }
+
+    video.srcObject = null;
+    video.style.display = 'none';
+    idle.style.display  = 'flex';
+    hud.style.display   = 'none';
+    tips.style.display  = 'none';
+    box.style.borderColor = '';
+    box.style.boxShadow   = '';
+    badge.textContent     = 'Computer Vision';
+    badge.className       = 'badge badge-blue';
+    isOn = false;
+    angleHistory = [];
+    plankStartTime = null;
+  }
+
+  function setExercise(name) {
+    currentExercise = name;
+    angleHistory = [];
+    repState = 'up';
+    plankStartTime = null;
+    document.getElementById('hud-exercise').textContent = EXERCISES[name].label;
+    // Highlight active exercise button
+    ['squat','pushup','plank'].forEach(e => {
+      const btn = document.getElementById('ex-' + e);
+      if (!btn) return;
+      btn.className = e === name ? 'btn btn-primary btn-sm' : 'btn btn-ghost btn-sm';
+      btn.style.flex = '1';
+    });
+  }
+
+  function resetSession() {
+    repCount = 0; setCount = 0; repScores = []; repState = 'up';
+    angleHistory = []; plankStartTime = null;
+    updateStats();
+    document.getElementById('fb-score').textContent = '—';
+    document.getElementById('fb-score-bar').style.width = '0%';
+  }
+
+  // Init: set default exercise highlight
+  document.addEventListener('DOMContentLoaded', () => setExercise('squat'));
+
+  return { toggle, startCamera, stopCamera, setExercise, resetSession };
+})();
+
+// Legacy alias so any old onclick="toggleCamera()" still works
+function toggleCamera() { CV.toggle(); }
+
+// ══════════════════════════════════════════════
+// APEX AI — ENHANCED JAVASCRIPT ENGINE v3.0
+// ══════════════════════════════════════════════
+
+// ── THEME SYSTEM ──────────────────────────────
+let currentGender = localStorage.getItem('apex-gender') || 'm';
+
+function applyTheme(gender) {
+  currentGender = gender;
+  localStorage.setItem('apex-gender', gender);
+  document.documentElement.setAttribute('data-theme', gender === 'f' ? 'female' : '');
+  const btn = document.getElementById('theme-toggle-btn');
+  if (btn) btn.textContent = gender === 'f' ? '♀' : '♂';
+}
+
+function toggleTheme() {
+  applyTheme(currentGender === 'm' ? 'f' : 'm');
+  showToast(currentGender === 'f' ? '🌸 Pink theme applied!' : '🔵 Navy theme applied!');
+}
+
+// ── USER PROFILE STATE ─────────────────────────
+let userProfile = JSON.parse(localStorage.getItem('apex-profile') || 'null') || {
+  name: 'Ahmed Hassan', age: 25, weight: 78.4, height: 175, targetWeight: 72,
+  gender: 'm', activity: 1.55, goal: 'lose'
+};
+
+let progressLog = JSON.parse(localStorage.getItem('apex-progress') || '[]');
+
+// ── PROFILE MODAL ─────────────────────────────
+function openProfileModal() {
+  const el = document.getElementById('p-name'); if(el) el.value = userProfile.name;
+  const ea = document.getElementById('p-age'); if(ea) ea.value = userProfile.age;
+  const ew = document.getElementById('p-weight'); if(ew) ew.value = userProfile.weight;
+  const eh = document.getElementById('p-height'); if(eh) eh.value = userProfile.height;
+  const et = document.getElementById('p-target'); if(et) et.value = userProfile.targetWeight;
+  const eac = document.getElementById('p-activity'); if(eac) eac.value = userProfile.activity;
+  const eg = document.getElementById('p-goal'); if(eg) eg.value = userProfile.goal;
+  selectProfileGender(userProfile.gender);
+  const modal = document.getElementById('profile-modal');
+  if(modal) { modal.style.display = 'flex'; }
+}
+
+function closeProfileModal() {
+  const modal = document.getElementById('profile-modal');
+  if(modal) modal.style.display = 'none';
+}
+
+function selectProfileGender(g) {
+  ['m','f'].forEach(x => {
+    const el = document.getElementById('pg-' + x);
+    if(el) el.classList.toggle('selected', x === g);
+  });
+  userProfile.gender = g;
+}
+
+function saveProfile() {
+  userProfile.name = document.getElementById('p-name')?.value || userProfile.name;
+  userProfile.age = parseFloat(document.getElementById('p-age')?.value) || userProfile.age;
+  userProfile.weight = parseFloat(document.getElementById('p-weight')?.value) || userProfile.weight;
+  userProfile.height = parseFloat(document.getElementById('p-height')?.value) || userProfile.height;
+  userProfile.targetWeight = parseFloat(document.getElementById('p-target')?.value) || userProfile.targetWeight;
+  userProfile.activity = parseFloat(document.getElementById('p-activity')?.value) || userProfile.activity;
+  userProfile.goal = document.getElementById('p-goal')?.value || userProfile.goal;
+  localStorage.setItem('apex-profile', JSON.stringify(userProfile));
+  applyTheme(userProfile.gender);
+  closeProfileModal();
+  updateDashboard();
+  showToast('✅ Profile saved & dashboard updated!');
+}
+
+// ── PROGRESS LOG MODAL ─────────────────────────
+function openProgressLog() {
+  const modal = document.getElementById('progress-log-modal');
+  if(modal) modal.style.display = 'flex';
+}
+
+function closeProgressLog() {
+  const modal = document.getElementById('progress-log-modal');
+  if(modal) modal.style.display = 'none';
+}
+
+function saveProgressLog() {
+  const entry = {
+    date: new Date().toLocaleDateString(),
+    weight: parseFloat(document.getElementById('log-weight')?.value) || userProfile.weight,
+    calories: parseInt(document.getElementById('log-calories')?.value) || 1840,
+    workouts: parseInt(document.getElementById('log-workouts')?.value) || 1,
+    water: parseInt(document.getElementById('log-water')?.value) || 8,
+    notes: document.getElementById('log-notes')?.value || ''
+  };
+  progressLog.unshift(entry);
+  if (progressLog.length > 30) progressLog = progressLog.slice(0,30);
+  localStorage.setItem('apex-progress', JSON.stringify(progressLog));
+  // Update current weight
+  userProfile.weight = entry.weight;
+  localStorage.setItem('apex-profile', JSON.stringify(userProfile));
+  closeProgressLog();
+  updateDashboard();
+  updateCharts();
+  showToast('📊 Progress logged successfully!');
+}
+
+// ── TOAST ─────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  if(!t) return;
+  t.textContent = msg;
+  t.style.opacity = '1'; t.style.transform = 'translateY(0)';
+  setTimeout(() => { t.style.opacity = '0'; t.style.transform = 'translateY(20px)'; }, 3000);
+}
+
+// ── BMI CALCULATOR ─────────────────────────────
+function calcBMI(weight, height) {
+  const h = height / 100;
+  return (weight / (h * h)).toFixed(1);
+}
+
+function getBMICategory(bmi) {
+  if (bmi < 18.5) return { label: 'Underweight', color: '#3498db', pct: 5 };
+  if (bmi < 25)   return { label: 'Normal Weight', color: '#2ecc71', pct: 30 };
+  if (bmi < 30)   return { label: 'Overweight', color: '#f1c40f', pct: 62 };
+  return { label: 'Obese', color: '#e74c3c', pct: 88 };
+}
+
+// ── TDEE CALCULATOR ────────────────────────────
+function calcTDEE(profile) {
+  // Mifflin-St Jeor
+  let bmr;
+  if (profile.gender === 'f') {
+    bmr = 10 * profile.weight + 6.25 * profile.height - 5 * profile.age - 161;
+  } else {
+    bmr = 10 * profile.weight + 6.25 * profile.height - 5 * profile.age + 5;
+  }
+  let tdee = Math.round(bmr * profile.activity);
+  if (profile.goal === 'lose') tdee -= 500;
+  if (profile.goal === 'build') tdee += 300;
+  return tdee;
+}
+
+// ── DASHBOARD UPDATE ──────────────────────────
+function updateDashboard() {
+  const bmi = calcBMI(userProfile.weight, userProfile.height);
+  const bmiData = getBMICategory(parseFloat(bmi));
+  const tdee = calcTDEE(userProfile);
+  const timeOfDay = new Date().getHours();
+  const greeting = timeOfDay < 12 ? 'Good morning' : timeOfDay < 18 ? 'Good afternoon' : 'Good evening';
+
+  // BMI display
+  const bmiEl = document.getElementById('bmi-display');
+  if(bmiEl) { bmiEl.textContent = bmi; bmiEl.style.color = bmiData.color; }
+  const bmiCat = document.getElementById('bmi-category');
+  if(bmiCat) bmiCat.textContent = bmiData.label;
+  const bmiInd = document.getElementById('bmi-indicator');
+  if(bmiInd) setTimeout(() => { bmiInd.style.left = bmiData.pct + '%'; }, 300);
+
+  // Height/Weight display
+  const hd = document.getElementById('profile-height-display');
+  const wd = document.getElementById('profile-weight-display');
+  if(hd) hd.textContent = userProfile.height;
+  if(wd) wd.textContent = userProfile.weight;
+
+  // KPI updates
+  const calKpi = document.querySelector('[data-kpi="calories"]');
+  if(calKpi) calKpi.textContent = tdee.toLocaleString();
+
+  // Greeting
+  const greetEl = document.querySelector('[data-greeting]');
+  if(greetEl) greetEl.innerHTML = `${greeting}, <span style="color:var(--neon);">${userProfile.name.split(' ')[0]}</span> 💪`;
+
+  // User name in sidebars
+  document.querySelectorAll('.sidebar-user-name').forEach(el => el.textContent = userProfile.name);
+  document.querySelectorAll('.avatar').forEach(el => el.textContent = userProfile.name.charAt(0).toUpperCase());
+}
+
+// ── CHART.JS CHARTS ───────────────────────────
+let weightChartInst = null, caloriesChartInst = null, completionChartInst = null;
+
+function getChartDefaults() {
+  const style = getComputedStyle(document.documentElement);
+  return {
+    neon: style.getPropertyValue('--neon').trim() || '#00ff88',
+    neon2: style.getPropertyValue('--neon2').trim() || '#00d4ff',
+    text2: style.getPropertyValue('--text2').trim() || '#7a9cbf',
+    warn: style.getPropertyValue('--warn').trim() || '#ff6b35',
+    dark3: style.getPropertyValue('--dark3').trim() || '#0d1829',
+  };
+}
+
+function buildWeightData() {
+  const base = progressLog.length > 0
+    ? progressLog.slice(0,14).reverse().map(e => ({ label: e.date, val: e.weight }))
+    : (() => {
+        const pts = [];
+        for(let i = 13; i >= 0; i--) {
+          const d = new Date(); d.setDate(d.getDate() - i);
+          pts.push({ label: d.toLocaleDateString('en', {month:'short',day:'numeric'}), val: +(userProfile.weight + (i * 0.47)).toFixed(1) });
+        }
+        return pts;
+      })();
+  return base;
+}
+
+function initCharts() {
+  const c = getChartDefaults();
+  const chartOpts = (label, color) => ({
+    responsive: true, maintainAspectRatio: true,
+    plugins: { legend: { display: false }, tooltip: { backgroundColor: '#111f33', borderColor: color, borderWidth: 1, titleColor: '#e0eeff', bodyColor: '#7a9cbf' } },
+    scales: {
+      x: { grid: { color: 'rgba(255,255,255,.05)' }, ticks: { color: c.text2, font: { size: 10 } } },
+      y: { grid: { color: 'rgba(255,255,255,.05)' }, ticks: { color: c.text2, font: { size: 10 } } }
+    }
+  });
+
+  // Weight Chart
+  const wCtx = document.getElementById('weightChart');
+  if (wCtx) {
+    if (weightChartInst) weightChartInst.destroy();
+    const wData = buildWeightData();
+    weightChartInst = new Chart(wCtx, {
+      type: 'line',
+      data: {
+        labels: wData.map(d => d.label),
+        datasets: [{
+          label: 'Weight (kg)', data: wData.map(d => d.val),
+          borderColor: c.neon, backgroundColor: c.neon + '15',
+          tension: 0.4, fill: true, pointBackgroundColor: c.neon, pointRadius: 4
+        }]
+      },
+      options: chartOpts('Weight', c.neon)
+    });
+  }
+
+  // Calories Chart
+  const calCtx = document.getElementById('caloriesChart');
+  if (calCtx) {
+    if (caloriesChartInst) caloriesChartInst.destroy();
+    const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+    const calData = progressLog.length >= 7
+      ? progressLog.slice(0,7).reverse().map(e => e.calories)
+      : [1840, 2100, 1750, 2200, 1920, 2050, 1840];
+    caloriesChartInst = new Chart(calCtx, {
+      type: 'bar',
+      data: {
+        labels: days,
+        datasets: [{
+          label: 'Calories', data: calData,
+          backgroundColor: [c.neon2+'aa',c.neon+'aa',c.neon2+'aa',c.warn+'aa',c.neon+'aa',c.neon2+'aa',c.neon+'aa'],
+          borderRadius: 6, borderSkipped: false
+        }]
+      },
+      options: chartOpts('Calories', c.neon2)
+    });
+  }
+
+  // Completion Doughnut
+  const compCtx = document.getElementById('completionChart');
+  if (compCtx) {
+    if (completionChartInst) completionChartInst.destroy();
+    completionChartInst = new Chart(compCtx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Completed', 'Remaining'],
+        datasets: [{ data: [65, 35], backgroundColor: [c.neon, 'rgba(255,255,255,.06)'], borderWidth: 0, hoverOffset: 4 }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: true,
+        cutout: '70%',
+        plugins: {
+          legend: { position: 'bottom', labels: { color: c.text2, font: { size: 11 } } },
+          tooltip: { backgroundColor: '#111f33', borderColor: c.neon, borderWidth: 1, titleColor: '#e0eeff', bodyColor: c.text2 }
+        }
+      }
+    });
+  }
+}
+
+function updateCharts() {
+  initCharts();
+  initProgressCharts();
+}
+
+let progressWeightChartInst = null, progressCaloriesChartInst = null;
+
+function initProgressCharts() {
+  const c = getChartDefaults();
+  const commonOpts = (color) => ({
+    responsive: true, maintainAspectRatio: true,
+    plugins: { legend: { display: false }, tooltip: { backgroundColor: '#111f33', borderColor: color, borderWidth: 1, titleColor: '#e0eeff', bodyColor: '#7a9cbf' } },
+    scales: {
+      x: { grid: { color: 'rgba(255,255,255,.05)' }, ticks: { color: c.text2, font: { size: 10 } } },
+      y: { grid: { color: 'rgba(255,255,255,.05)' }, ticks: { color: c.text2, font: { size: 10 } } }
+    }
+  });
+
+  const pwCtx = document.getElementById('progressWeightChart');
+  if (pwCtx) {
+    if (progressWeightChartInst) progressWeightChartInst.destroy();
+    const wData = buildWeightData();
+    progressWeightChartInst = new Chart(pwCtx, {
+      type: 'line',
+      data: {
+        labels: wData.map(d => d.label),
+        datasets: [{
+          label: 'Weight (kg)', data: wData.map(d => d.val),
+          borderColor: c.neon, backgroundColor: c.neon + '20',
+          tension: 0.4, fill: true, pointBackgroundColor: c.neon, pointRadius: 3
+        }]
+      },
+      options: commonOpts(c.neon)
+    });
+    // Update badge
+    const badge = document.getElementById('progress-weight-badge');
+    if (badge && wData.length > 1) {
+      const diff = (wData[wData.length-1].val - wData[0].val).toFixed(1);
+      badge.textContent = diff < 0 ? `↓ ${diff}kg` : `↑ +${diff}kg`;
+    }
+  }
+
+  const pcCtx = document.getElementById('progressCaloriesChart');
+  if (pcCtx) {
+    if (progressCaloriesChartInst) progressCaloriesChartInst.destroy();
+    const calData = progressLog.length > 0
+      ? progressLog.slice(0, 14).reverse().map(e => ({ label: e.date, val: e.calories }))
+      : Array.from({length:14}, (_, i) => {
+          const d = new Date(); d.setDate(d.getDate() - (13-i));
+          return { label: d.toLocaleDateString('en',{month:'short',day:'numeric'}), val: 1700 + Math.floor(Math.random()*600) };
+        });
+    progressCaloriesChartInst = new Chart(pcCtx, {
+      type: 'bar',
+      data: {
+        labels: calData.map(d => d.label),
+        datasets: [{
+          label: 'Calories', data: calData.map(d => d.val),
+          backgroundColor: c.neon2 + '99', borderRadius: 5, borderSkipped: false
+        }]
+      },
+      options: commonOpts(c.neon2)
+    });
+  }
+}
+
+// ── REAL AI CHATBOT (Claude API) ──────────────
+// ══════════════════════════════════════════════
+// APEX AI — BACKEND INTEGRATION LAYER
+// All API calls route through the local FastAPI
+// backend running at APEX_API.
+// ══════════════════════════════════════════════
+const APEX_API = 'http://localhost:8000';
+
+async function fetchMLPredictions() {
+  try {
+    const body = {
+      age:            userProfile.age,
+      weight_kg:      userProfile.weight,
+      height_cm:      userProfile.height,
+      activity_level: userProfile.activity,
+      gender:         userProfile.gender === 'f' ? 0 : 1,
+    };
+    const res = await fetch(`${APEX_API}/predict`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    document.querySelectorAll('[data-ml="tdee"]').forEach(el => {
+      el.textContent = Math.round(data.calories_tdee) + ' kcal';
+    });
+    document.querySelectorAll('[data-ml="fitness-level"]').forEach(el => {
+      el.textContent = data.fitness_level;
+    });
+    document.querySelectorAll('[data-ml="weight-change"]').forEach(el => {
+      const delta = data.weight_change_30d;
+      el.textContent = (delta >= 0 ? '+' : '') + delta.toFixed(1) + ' kg / 30d';
+    });
+    window._mlData = data;
+    console.log('🤖 ML Predictions:', data);
+    return data;
+  } catch (e) {
+    console.warn('Backend not reachable — using local calculations.', e.message);
+  }
+}
+
+async function syncProfileToBackend() {
+  try {
+    await fetch(`${APEX_API}/user-data/profile`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: userProfile.name, age: userProfile.age,
+        weight_kg: userProfile.weight, height_cm: userProfile.height,
+        activity_level: userProfile.activity,
+        gender: userProfile.gender === 'f' ? 0 : 1,
+        goal: userProfile.goal, target_weight: userProfile.targetWeight,
+      }),
+    });
+  } catch (e) {}
+}
+
+async function logWorkoutToBackend(exercise, sets, reps, weightKg = 0, durationMin = 30) {
+  try {
+    await fetch(`${APEX_API}/user-data/workout`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ exercise, sets, reps, weight_kg: weightKg, duration_min: durationMin }),
+    });
+  } catch (e) {}
+}
+
+// ── REAL AI CHATBOT (routes to FastAPI backend) ──
+const chatHistory = [];
+
+async function sendMsg() {
+  const input = document.getElementById('chat-input-field');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+
+  const container = document.getElementById('chat-messages');
+  const initials = userProfile.name.charAt(0).toUpperCase();
+
+  // User message
+  const userDiv = document.createElement('div');
+  userDiv.className = 'chat-msg user';
+  userDiv.innerHTML = `
+    <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#ff6b35,#ffd93d);display:flex;align-items:center;justify-content:center;font-size:.85rem;flex-shrink:0;font-weight:700;">${initials}</div>
+    <div>
+      <div class="chat-bubble">${text.replace(/</g,'&lt;')}</div>
+      <div style="font-size:.68rem;color:var(--text3);margin-top:.3rem;text-align:right;padding-right:.5rem;">You · Just now</div>
+    </div>`;
+  container.appendChild(userDiv);
+
+  // Typing indicator
+  const typingDiv = document.createElement('div');
+  typingDiv.className = 'chat-msg ai';
+  typingDiv.id = 'typing-indicator';
+  typingDiv.innerHTML = `
+    <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--neon),var(--neon2));display:flex;align-items:center;justify-content:center;font-size:.9rem;flex-shrink:0;">🧠</div>
+    <div class="chat-bubble"><div class="typing-dots"><span></span><span></span><span></span></div></div>`;
+  container.appendChild(typingDiv);
+  container.scrollTop = container.scrollHeight;
+
+  // Add to history
+  chatHistory.push({ role: 'user', content: text });
+  if (chatHistory.length > 20) chatHistory.shift();
+
+  try {
+    // ── Route through local FastAPI backend (POST /chat) ────────────────────
+    const response = await fetch(`${APEX_API}/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message:   text,
+        history:   chatHistory.slice(0, -1),   // exclude the message just pushed
+        user_data: {
+          name:           userProfile.name,
+          age:            userProfile.age,
+          weight_kg:      userProfile.weight,
+          height_cm:      userProfile.height,
+          goal:           userProfile.goal,
+          activity_level: userProfile.activity,
+          gender:         userProfile.gender === 'f' ? 0 : 1,
+        },
+        user_id: 1,
+      })
+    });
+
+    document.getElementById('typing-indicator')?.remove();
+
+    let aiText = '';
+    if (response.ok) {
+      const data = await response.json();
+      aiText = data.reply || 'Great question! Let me help you with that. 💪';
+    } else {
+      // Fallback smart responses based on context
+      aiText = getFallbackResponse(text);
+    }
+
+    chatHistory.push({ role: 'assistant', content: aiText });
+
+    const aiDiv = document.createElement('div');
+    aiDiv.className = 'chat-msg ai';
+    const formatted = aiText.replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<b>$1</b>');
+    aiDiv.innerHTML = `
+      <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--neon),var(--neon2));display:flex;align-items:center;justify-content:center;font-size:.9rem;flex-shrink:0;">🧠</div>
+      <div>
+        <div class="chat-bubble">${formatted}</div>
+        <div style="font-size:.68rem;color:var(--text3);margin-top:.3rem;padding-left:.5rem;">APEX AI · Just now</div>
+      </div>`;
+    container.appendChild(aiDiv);
+    container.scrollTop = container.scrollHeight;
+
+  } catch (err) {
+    document.getElementById('typing-indicator')?.remove();
+    const aiDiv = document.createElement('div');
+    aiDiv.className = 'chat-msg ai';
+    const fallback = getFallbackResponse(text);
+    aiDiv.innerHTML = `
+      <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--neon),var(--neon2));display:flex;align-items:center;justify-content:center;font-size:.9rem;flex-shrink:0;">🧠</div>
+      <div>
+        <div class="chat-bubble">${fallback.replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<b>$1</b>')}</div>
+        <div style="font-size:.68rem;color:var(--text3);margin-top:.3rem;padding-left:.5rem;">APEX AI · Just now</div>
+      </div>`;
+    container.appendChild(aiDiv);
+    container.scrollTop = container.scrollHeight;
+  }
+}
+
+function getFallbackResponse(text) {
+  const t = text.toLowerCase();
+  const tdee = calcTDEE(userProfile);
+  const bmi = calcBMI(userProfile.weight, userProfile.height);
+
+  if (t.includes('workout') || t.includes('plan') || t.includes('exercise')) {
+    return `**Your Personalized 4-Day Workout Plan** 💪\n\nBased on your goal to **${userProfile.goal}** weight:\n\n**Day 1 — Push (Chest/Shoulders/Triceps)**\n• Bench Press 4×10 @ 70% 1RM\n• Overhead Press 3×12\n• Lateral Raises 4×15\n• Tricep Dips 3×failure\n\n**Day 2 — Pull (Back/Biceps)**\n• Deadlifts 4×8\n• Pull-ups 4×8\n• Barbell Rows 3×10\n• Bicep Curls 3×12\n\n**Day 3 — Rest & Recovery** 🧘\n\n**Day 4 — Legs**\n• Squats 4×10\n• Romanian Deadlifts 3×12\n• Leg Press 4×15\n• Calf Raises 4×20\n\nRest 60-90 sec between sets. You've got this! 🔥`;
+  }
+
+  if (t.includes('diet') || t.includes('nutrition') || t.includes('eat') || t.includes('calories') || t.includes('meal')) {
+    const protein = Math.round(userProfile.weight * 2.2);
+    const carbs = Math.round((tdee * 0.45) / 4);
+    const fats = Math.round((tdee * 0.25) / 9);
+    return `**Your Personalized Nutrition Plan** 🥗\n\n**Daily Targets (${tdee} kcal)**\n• Protein: **${protein}g** (muscle preservation)\n• Carbs: **${carbs}g** (energy)\n• Fats: **${fats}g** (hormones)\n\n**Meal Plan:**\n🌅 Breakfast: 3 eggs + oats + banana (520 kcal)\n☀️ Lunch: Chicken 200g + rice 150g + salad (650 kcal)\n🍎 Snack: Greek yogurt + protein shake (300 kcal)\n🌙 Dinner: Salmon 180g + sweet potato (580 kcal)\n\n**Tips for your goal:**\n• Eat protein within 30 min post-workout\n• Stay hydrated (3L+ water daily)\n• Avoid processed foods`;
+  }
+
+  if (t.includes('bmi') || t.includes('weight') || t.includes('progress')) {
+    return `**Your Stats Analysis** 📊\n\n**Current BMI: ${bmi}** — ${getBMICategory(parseFloat(bmi)).label}\n**Current Weight: ${userProfile.weight}kg**\n**Target: ${userProfile.targetWeight}kg**\n**To lose: ${(userProfile.weight - userProfile.targetWeight).toFixed(1)}kg**\n\nAt a healthy deficit of 500 kcal/day, you'll reach your goal in approximately **${Math.ceil((userProfile.weight - userProfile.targetWeight) / 0.5 * 7)} days**. 🎯\n\nStay consistent and trust the process! 💪`;
+  }
+
+  return `Great question, ${userProfile.name.split(' ')[0]}! 💪 Based on your profile (${userProfile.weight}kg, ${userProfile.height}cm, Goal: ${userProfile.goal}), your daily calorie target is **${tdee} calories**.\n\nI'm here to help you reach your fitness goals. Ask me about:\n• Workout plans 🏋️\n• Nutrition advice 🥗\n• Progress tracking 📊\n• Recovery tips 💤\n\nKeep pushing — you're doing amazing! 🔥`;
+}
+
+function addSuggestion(text) {
+  const input = document.getElementById('chat-input-field');
+  if(input) { input.value = text; sendMsg(); }
+}
+
+// ── THEME TOGGLE BUTTON ───────────────────────
+function createThemeBtn() {
+  const btn = document.createElement('button');
+  btn.id = 'theme-toggle-btn';
+  btn.onclick = toggleTheme;
+  btn.title = 'Toggle Gender Theme';
+  btn.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:9999;width:52px;height:52px;border-radius:50%;border:none;cursor:pointer;background:linear-gradient(135deg,var(--neon),var(--neon2));font-size:1.3rem;box-shadow:0 4px 20px rgba(0,0,0,.4);transition:transform .2s;display:flex;align-items:center;justify-content:center;';
+  btn.textContent = currentGender === 'f' ? '♀' : '♂';
+  btn.onmouseover = () => btn.style.transform = 'scale(1.1) rotate(15deg)';
+  btn.onmouseout  = () => btn.style.transform = 'scale(1)';
+  document.body.appendChild(btn);
+}
+
+// ── TOAST ELEMENT ─────────────────────────────
+function createToast() {
+  if (document.getElementById('toast')) return;
+  const t = document.createElement('div');
+  t.id = 'toast';
+  t.style.cssText = 'position:fixed;bottom:90px;right:24px;z-index:9998;background:var(--dark3);border:1px solid var(--border);border-radius:12px;padding:.85rem 1.25rem;font-size:.85rem;color:var(--text);box-shadow:0 8px 30px rgba(0,0,0,.5);transform:translateY(20px);opacity:0;transition:all .3s;pointer-events:none;max-width:280px;';
+  document.body.appendChild(t);
+}
+
+// ── INIT ──────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  createThemeBtn();
+  createToast();
+  applyTheme(currentGender);
+  updateDashboard();
+
+  // Animate progress bars on page load
+  setTimeout(() => {
+    document.querySelectorAll('.progress-fill').forEach(el => {
+      const w = el.style.width;
+      el.style.width = '0';
+      setTimeout(() => { el.style.width = w; }, 100);
+    });
+  }, 300);
+
+  // Init charts after a small delay to ensure DOM is ready
+  setTimeout(initCharts, 500);
+  setTimeout(initProgressCharts, 600);
+
+  // Animate mini chart bars
+  const bars = document.querySelectorAll('.mini-bar');
+  const heights = ['40%','65%','45%','80%','55%','90%','70%'];
+  bars.forEach((bar, i) => {
+    bar.style.height = '0';
+    setTimeout(() => { bar.style.height = heights[i % heights.length]; }, 200 + i * 80);
+  });
+
+  // Init exercise selector highlight
+  CV.setExercise('squat');
+
+  // Re-init charts when dashboard page is visited
+  document.querySelectorAll('.sidebar-link[onclick*="dashboard"]').forEach(link => {
+    link.addEventListener('click', () => setTimeout(initCharts, 100));
+  });
+
+  // Close modals on backdrop click
+  ['profile-modal','progress-log-modal'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.addEventListener('click', e => { if(e.target === el) { el.style.display = 'none'; } });
+  });
+});
+</script>
+<script src="api.js"></script>
+</body>
+</html>

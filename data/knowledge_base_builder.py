@@ -767,8 +767,8 @@ def _format_meal_chunk(meal: dict) -> str:
     # Extract ingredients
     ingredients = []
     for i in range(1, 21):
-        ing = meal.get(f"strIngredient{i}", "").strip()
-        meas = meal.get(f"strMeasure{i}", "").strip()
+        ing = (meal.get(f"strIngredient{i}")or "").strip()
+        meas = (meal.get(f"strMeasure{i}")or "").strip()
         if ing:
             ingredients.append(f"{meas} {ing}".strip() if meas else ing)
 

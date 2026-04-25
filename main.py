@@ -151,6 +151,13 @@ try:
 except Exception as e:
     logger.warning(f"Legacy routes partially unavailable: {e}")
 
+try:
+    from backend.rag_coach.routes import router as rag_router
+    app.include_router(rag_router)
+    print("✅ RAG router registered")
+except Exception as e:
+    print(f"⚠️ RAG router: {e}")
+
 # ── Serve Frontend (DO NOT MODIFY) ────────────────────────────────────────────
 frontend_dir = ROOT / "frontend"
 if frontend_dir.exists():
